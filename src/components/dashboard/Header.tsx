@@ -76,7 +76,7 @@ export const Header = ({ userName = "John Doe", currentPlan = "Pro Plan" }: Head
 
             {/* Dropdown Menu */}
             {isDropdownOpen && (
-              <div className="absolute right-0 top-full mt-2 w-60 glass-card animate-slide-down z-50">
+              <div className="absolute right-0 top-full mt-2 w-60 bg-card border border-border rounded-xl shadow-lg animate-slide-down z-50">
                 <div className="p-4 border-b border-border/50">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
