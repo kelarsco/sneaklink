@@ -4,6 +4,7 @@ import { toast } from "@/hooks/use-toast";
 
 interface BulkActionsProps {
   stores: Store[];
+  allStores: Store[];
   totalCount: number;
   viewMode: "grid" | "list";
   onViewModeChange: (mode: "grid" | "list") => void;
@@ -11,10 +12,11 @@ interface BulkActionsProps {
   onItemsPerPageChange: (count: number) => void;
 }
 
-const PAGE_SIZE_OPTIONS = [12, 24, 48, 96];
+const PAGE_SIZE_OPTIONS = [100, 500, 1000];
 
 export const BulkActions = ({ 
   stores, 
+  allStores,
   totalCount, 
   viewMode, 
   onViewModeChange,
@@ -32,7 +34,7 @@ export const BulkActions = ({
 
   const exportToCSV = () => {
     const headers = ["Store URL"];
-    const rows = stores.map(s => [s.url]);
+    const rows = allStores.map(s => [s.url]);
     const csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
     
     const blob = new Blob([csvContent], { type: "text/csv" });
@@ -45,7 +47,7 @@ export const BulkActions = ({
     
     toast({
       title: "Export complete!",
-      description: `${stores.length} stores exported to CSV`,
+      description: `${allStores.length} stores exported to CSV`,
     });
   };
 
