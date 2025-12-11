@@ -6,8 +6,6 @@ import { Pagination } from "@/components/dashboard/Pagination";
 import { BulkActions } from "@/components/dashboard/BulkActions";
 import { generateMoreStores, Store } from "@/data/mockData";
 
-const ITEMS_PER_PAGE = 12;
-
 const Index = () => {
   const [filters, setFilters] = useState<FilterState>({
     countries: [],
@@ -16,6 +14,7 @@ const Index = () => {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [itemsPerPage, setItemsPerPage] = useState(12);
 
   // Generate mock data
   const allStores = useMemo(() => generateMoreStores(150), []);
@@ -42,11 +41,11 @@ const Index = () => {
   }, [allStores, filters]);
 
   // Paginate
-  const totalPages = Math.ceil(filteredStores.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredStores.length / itemsPerPage);
   const paginatedStores = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredStores.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredStores, currentPage]);
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredStores.slice(start, start + itemsPerPage);
+  }, [filteredStores, currentPage, itemsPerPage]);
 
   const handleFiltersChange = (newFilters: FilterState) => {
     setFilters(newFilters);
@@ -56,6 +55,11 @@ const Index = () => {
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleItemsPerPageChange = (count: number) => {
+    setItemsPerPage(count);
+    setCurrentPage(1);
   };
 
   return (
@@ -85,6 +89,8 @@ const Index = () => {
             totalCount={filteredStores.length}
             viewMode={viewMode}
             onViewModeChange={setViewMode}
+            itemsPerPage={itemsPerPage}
+            onItemsPerPageChange={handleItemsPerPageChange}
           />
 
           {paginatedStores.length > 0 ? (
