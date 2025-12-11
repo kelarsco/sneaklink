@@ -1,0 +1,93 @@
+import { Copy, Download, Grid3X3, List } from "lucide-react";
+import { Store } from "@/data/mockData";
+import { toast } from "@/hooks/use-toast";
+
+interface BulkActionsProps {
+  stores: Store[];
+  totalCount: number;
+  viewMode: "grid" | "list";
+  onViewModeChange: (mode: "grid" | "list") => void;
+}
+
+export const BulkActions = ({ stores, totalCount, viewMode, onViewModeChange }: BulkActionsProps) => {
+  const copyAllLinks = () => {
+    const links = stores.map(s => s.url).join("\n");
+    navigator.clipboard.writeText(links);
+    toast({
+      title: "Links copied!",
+      description: `${stores.length} store URLs copied to clipboard`,
+    });
+  };
+
+  const exportToCSV = () => {
+    const headers = ["Store URL"];
+    const rows = stores.map(s => [s.url]);
+    const csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
+    
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `store_links_${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Export complete!",
+      description: `${stores.length} stores exported to CSV`,
+    });
+  };
+
+  return (
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+      <div className="text-sm text-muted-foreground">
+        Showing <span className="text-foreground font-medium">{stores.length}</span> of{" "}
+        <span className="text-foreground font-medium">{totalCount}</span> stores
+      </div>
+
+      <div className="flex items-center gap-3">
+        {/* View Mode Toggle */}
+        <div className="flex items-center glass-panel rounded-lg p-1">
+          <button
+            onClick={() => onViewModeChange("grid")}
+            className={`p-2 rounded-md transition-colors ${
+              viewMode === "grid" 
+                ? "bg-primary text-primary-foreground" 
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            title="Grid view"
+          >
+            <Grid3X3 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => onViewModeChange("list")}
+            className={`p-2 rounded-md transition-colors ${
+              viewMode === "list" 
+                ? "bg-primary text-primary-foreground" 
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            title="List view"
+          >
+            <List className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Bulk Action Buttons */}
+        <button
+          onClick={copyAllLinks}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary/50 text-foreground text-sm font-medium hover:bg-secondary transition-colors"
+        >
+          <Copy className="w-4 h-4" />
+          <span className="hidden sm:inline">Copy All Links</span>
+        </button>
+        <button
+          onClick={exportToCSV}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors glow-effect"
+        >
+          <Download className="w-4 h-4" />
+          <span className="hidden sm:inline">Export CSV</span>
+        </button>
+      </div>
+    </div>
+  );
+};
