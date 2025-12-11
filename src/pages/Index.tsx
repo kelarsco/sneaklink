@@ -14,7 +14,7 @@ const Index = () => {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [itemsPerPage, setItemsPerPage] = useState(12);
+  const [itemsPerPage, setItemsPerPage] = useState(100);
 
   // Generate mock data
   const allStores = useMemo(() => generateMoreStores(150), []);
@@ -86,6 +86,7 @@ const Index = () => {
         <div className="glass-card p-6 relative z-0">
           <BulkActions
             stores={paginatedStores}
+            allStores={filteredStores}
             totalCount={filteredStores.length}
             viewMode={viewMode}
             onViewModeChange={setViewMode}

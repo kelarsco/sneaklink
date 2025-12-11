@@ -75,7 +75,7 @@ export const FilterSection = ({ onFiltersChange }: FilterSectionProps) => {
   };
 
   return (
-    <div className="glass-card p-6 mb-6 overflow-visible">
+    <div className="bg-card border border-border rounded-xl p-6 mb-6 overflow-visible shadow-md">
       <div className="flex items-center gap-2 mb-4">
         <Filter className="w-5 h-5 text-primary" />
         <h2 className="text-lg font-semibold text-foreground">Filters</h2>
@@ -100,7 +100,7 @@ export const FilterSection = ({ onFiltersChange }: FilterSectionProps) => {
           </button>
 
           {activeDropdown === "country" && (
-            <div className="absolute top-full left-0 right-0 mt-2 glass-card max-h-80 overflow-hidden z-50 animate-slide-down">
+            <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-xl max-h-80 overflow-hidden z-50 animate-slide-down shadow-lg">
               <div className="p-3 border-b border-border/50">
                 <input
                   type="text"
@@ -188,8 +188,8 @@ export const FilterSection = ({ onFiltersChange }: FilterSectionProps) => {
           </button>
 
           {activeDropdown === "date" && (
-            <div className="absolute top-full left-0 right-0 mt-2 glass-card p-4 z-50 animate-slide-down">
-              <div className="space-y-3">
+            <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-xl p-4 z-50 animate-slide-down shadow-lg">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">From</label>
                   <input
@@ -208,15 +208,13 @@ export const FilterSection = ({ onFiltersChange }: FilterSectionProps) => {
                     className="w-full bg-secondary/50 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => { setDateFrom(""); setDateTo(""); }}
-                    className="flex-1 px-3 py-1.5 rounded-lg text-xs bg-secondary/50 text-foreground hover:bg-secondary transition-colors"
-                  >
-                    Clear
-                  </button>
-                </div>
               </div>
+              <button
+                onClick={() => { setDateFrom(""); setDateTo(""); }}
+                className="w-full mt-3 px-3 py-1.5 rounded-lg text-xs bg-secondary/50 text-foreground hover:bg-secondary transition-colors"
+              >
+                Clear
+              </button>
             </div>
           )}
         </div>
@@ -239,7 +237,7 @@ export const FilterSection = ({ onFiltersChange }: FilterSectionProps) => {
           </button>
 
           {activeDropdown === "theme" && (
-            <div className="absolute top-full left-0 right-0 mt-2 glass-card max-h-80 overflow-hidden z-50 animate-slide-down">
+            <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-xl max-h-80 overflow-hidden z-50 animate-slide-down shadow-lg">
               <div className="p-3 border-b border-border/50">
                 <input
                   type="text"
