@@ -100,7 +100,7 @@ export const FilterSection = ({ onFiltersChange }: FilterSectionProps) => {
           </button>
 
           {activeDropdown === "country" && (
-            <div className="absolute top-full left-0 right-0 mt-2 glass-card max-h-80 overflow-hidden z-40 animate-slide-down">
+            <div className="absolute top-full left-0 right-0 mt-2 glass-card max-h-80 overflow-hidden z-50 animate-slide-down">
               <div className="p-3 border-b border-border/50">
                 <input
                   type="text"
@@ -188,7 +188,7 @@ export const FilterSection = ({ onFiltersChange }: FilterSectionProps) => {
           </button>
 
           {activeDropdown === "date" && (
-            <div className="absolute top-full left-0 right-0 mt-2 glass-card p-4 z-40 animate-slide-down">
+            <div className="absolute top-full left-0 right-0 mt-2 glass-card p-4 z-50 animate-slide-down">
               <div className="space-y-3">
                 <div>
                   <label className="text-xs text-muted-foreground mb-1 block">From</label>
@@ -239,7 +239,7 @@ export const FilterSection = ({ onFiltersChange }: FilterSectionProps) => {
           </button>
 
           {activeDropdown === "theme" && (
-            <div className="absolute top-full left-0 right-0 mt-2 glass-card max-h-80 overflow-hidden z-40 animate-slide-down">
+            <div className="absolute top-full left-0 right-0 mt-2 glass-card max-h-80 overflow-hidden z-50 animate-slide-down">
               <div className="p-3 border-b border-border/50">
                 <input
                   type="text"
