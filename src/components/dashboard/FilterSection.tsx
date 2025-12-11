@@ -75,7 +75,7 @@ export const FilterSection = ({ onFiltersChange }: FilterSectionProps) => {
   };
 
   return (
-    <div className="glass-card p-6 mb-6">
+    <div className="glass-card p-6 mb-6 overflow-visible">
       <div className="flex items-center gap-2 mb-4">
         <Filter className="w-5 h-5 text-primary" />
         <h2 className="text-lg font-semibold text-foreground">Filters</h2>
