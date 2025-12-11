@@ -102,7 +102,7 @@
 
 @layer components {
   .glass-panel {
-    @apply relative overflow-hidden;
+    @apply relative;
     background: hsl(var(--glass-bg));
     backdrop-filter: blur(var(--glass-blur));
     -webkit-backdrop-filter: blur(var(--glass-blur));
