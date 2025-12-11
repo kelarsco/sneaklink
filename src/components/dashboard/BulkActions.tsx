@@ -7,9 +7,20 @@ interface BulkActionsProps {
   totalCount: number;
   viewMode: "grid" | "list";
   onViewModeChange: (mode: "grid" | "list") => void;
+  itemsPerPage: number;
+  onItemsPerPageChange: (count: number) => void;
 }
 
-export const BulkActions = ({ stores, totalCount, viewMode, onViewModeChange }: BulkActionsProps) => {
+const PAGE_SIZE_OPTIONS = [12, 24, 48, 96];
+
+export const BulkActions = ({ 
+  stores, 
+  totalCount, 
+  viewMode, 
+  onViewModeChange,
+  itemsPerPage,
+  onItemsPerPageChange
+}: BulkActionsProps) => {
   const copyAllLinks = () => {
     const links = stores.map(s => s.url).join("\n");
     navigator.clipboard.writeText(links);
@@ -40,9 +51,27 @@ export const BulkActions = ({ stores, totalCount, viewMode, onViewModeChange }: 
 
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-      <div className="text-sm text-muted-foreground">
-        Showing <span className="text-foreground font-medium">{stores.length}</span> of{" "}
-        <span className="text-foreground font-medium">{totalCount}</span> stores
+      <div className="flex items-center gap-4">
+        <div className="text-sm text-muted-foreground">
+          Showing <span className="text-foreground font-medium">{stores.length}</span> of{" "}
+          <span className="text-foreground font-medium">{totalCount}</span> stores
+        </div>
+        
+        {/* Items Per Page Selector */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Show:</span>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
+            className="bg-secondary/50 border border-border/50 rounded-lg px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          >
+            {PAGE_SIZE_OPTIONS.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="flex items-center gap-3">
