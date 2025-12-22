@@ -1,0 +1,197 @@
+/* Custom Glass Effects */
+.glass-panel {
+  position: relative;
+  background: hsl(var(--glass-bg));
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid hsl(var(--glass-border));
+}
+
+.glass-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--gradient-glass);
+}
+
+.glass-card {
+  position: relative;
+  background: hsl(var(--glass-bg));
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid hsl(var(--glass-border));
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-card);
+}
+
+.glass-button {
+  position: relative;
+  background: hsl(var(--glass-bg));
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid hsl(var(--glass-border));
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  transition: all 200ms;
+}
+
+.glass-button:hover {
+  background: hsl(222 47% 15% / 0.8);
+  border-color: hsl(var(--primary) / 0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px hsl(var(--primary) / 0.1);
+}
+
+/* Prevent glass-button hover from affecting filter buttons */
+button.filter-button-country.glass-button:hover,
+button.filter-button-date.glass-button:hover,
+button.filter-button-theme.glass-button:hover {
+  background: hsl(222 47% 15% / 0.9) !important;
+  border: 1px solid hsl(187 100% 50%) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* Override glass-button styles for filter buttons - must come after glass-button definition */
+button.filter-button-country.glass-button,
+button.filter-button-date.glass-button,
+button.filter-button-theme.glass-button {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid hsl(var(--border) / 0.3) !important;
+}
+
+/* Override glass-button hover for filter buttons */
+button.filter-button-country.glass-button:hover,
+button.filter-button-date.glass-button:hover,
+button.filter-button-theme.glass-button:hover {
+  background: hsl(222 47% 15% / 0.9) !important;
+  border: 1px solid hsl(187 100% 50%) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* Gradient Text */
+.gradient-text {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glow Effect */
+.glow-effect {
+  box-shadow: var(--shadow-glow);
+}
+
+/* Animations */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+  }
+  to { 
+    opacity: 1; 
+  }
+}
+
+@keyframes slideDown {
+  from { 
+    opacity: 0; 
+    transform: translateY(-8px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { 
+    box-shadow: 0 0 20px hsl(187 100% 50% / 0.2); 
+  }
+  50% { 
+    box-shadow: 0 0 40px hsl(187 100% 50% / 0.4); 
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Enhanced hover effects for interactive elements */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px hsl(var(--primary) / 0.2);
+}
+
+/* Border hover effects */
+.border-hover {
+  transition: border-color 0.2s ease;
+}
+
+.border-hover:hover {
+  border-color: hsl(var(--primary) / 0.5);
+}
+
+/* Filter Button Styles - Default state (subtle border, no fill) */
+button.filter-button-country,
+button.filter-button-date,
+button.filter-button-theme,
+.filter-button-country,
+.filter-button-date,
+.filter-button-theme {
+  border: 1px solid hsl(var(--border) / 0.3) !important;
+  background: transparent !important;
+  padding: 0.625rem 1rem !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  min-height: 2.5rem;
+}
+
+/* Filter Button Styles - Hover state (solid cyan border + darker blue fill) */
+button.filter-button-country:hover,
+button.filter-button-date:hover,
+button.filter-button-theme:hover,
+.filter-button-country:hover,
+.filter-button-date:hover,
+.filter-button-theme:hover,
+button.filter-button-country.glass-button:hover,
+button.filter-button-date.glass-button:hover,
+button.filter-button-theme.glass-button:hover {
+  border: 1px solid hsl(187 100% 50%) !important;
+  background: hsl(222 47% 15% / 0.9) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* Filter Button Styles - Active state (when dropdown is open) */
+button.filter-button-country.active,
+button.filter-button-date.active,
+button.filter-button-theme.active,
+.filter-button-country.active,
+.filter-button-date.active,
+.filter-button-theme.active,
+button.filter-button-country.glass-button.active,
+button.filter-button-date.glass-button.active,
+button.filter-button-theme.glass-button.active {
+  border: 1px solid hsl(187 100% 50%) !important;
+  background: hsl(222 47% 15% / 0.9) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
