@@ -25,6 +25,21 @@
   box-shadow: var(--shadow-card);
 }
 
+/* Light theme card styles for admin dashboard */
+.stat-card {
+  background: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
 .glass-button {
   position: relative;
   background: hsl(var(--glass-bg));
@@ -47,7 +62,8 @@
 /* Prevent glass-button hover from affecting filter buttons */
 button.filter-button-country.glass-button:hover,
 button.filter-button-date.glass-button:hover,
-button.filter-button-theme.glass-button:hover {
+button.filter-button-theme.glass-button:hover,
+button.filter-button-tag.glass-button:hover {
   background: hsl(222 47% 15% / 0.9) !important;
   border: 1px solid hsl(187 100% 50%) !important;
   box-shadow: none !important;
@@ -57,7 +73,8 @@ button.filter-button-theme.glass-button:hover {
 /* Override glass-button styles for filter buttons - must come after glass-button definition */
 button.filter-button-country.glass-button,
 button.filter-button-date.glass-button,
-button.filter-button-theme.glass-button {
+button.filter-button-theme.glass-button,
+button.filter-button-tag.glass-button {
   background: transparent !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
@@ -67,7 +84,8 @@ button.filter-button-theme.glass-button {
 /* Override glass-button hover for filter buttons */
 button.filter-button-country.glass-button:hover,
 button.filter-button-date.glass-button:hover,
-button.filter-button-theme.glass-button:hover {
+button.filter-button-theme.glass-button:hover,
+button.filter-button-tag.glass-button:hover {
   background: hsl(222 47% 15% / 0.9) !important;
   border: 1px solid hsl(187 100% 50%) !important;
   box-shadow: none !important;
@@ -152,27 +170,55 @@ button.filter-button-theme.glass-button:hover {
 button.filter-button-country,
 button.filter-button-date,
 button.filter-button-theme,
+button.filter-button-tag,
 .filter-button-country,
 .filter-button-date,
-.filter-button-theme {
-  border: 1px solid hsl(var(--border) / 0.3) !important;
+.filter-button-theme,
+.filter-button-tag {
+  /* Strong, clearly visible and thick border for all filter boxes */
+  border: 3px solid hsl(187 100% 50%) !important;
   background: transparent !important;
-  padding: 0.625rem 1rem !important;
+  padding: 0.75rem 1.25rem !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   min-height: 2.5rem;
+}
+
+/* Filter Button Padding Overrides */
+button.filter-button-country,
+.filter-button-country {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+
+button.filter-button-tag,
+.filter-button-tag {
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+}
+
+/* Wrapper around each filter trigger (provides padding, border and radius) */
+.filter-control {
+  border-width: 1px;
+  border-style: solid;
+  border-color: rgba(32, 40, 60, 1);
+  border-radius: 5px;
+  padding: 6px 11px;
 }
 
 /* Filter Button Styles - Hover state (solid cyan border + darker blue fill) */
 button.filter-button-country:hover,
 button.filter-button-date:hover,
 button.filter-button-theme:hover,
+button.filter-button-tag:hover,
 .filter-button-country:hover,
 .filter-button-date:hover,
 .filter-button-theme:hover,
+.filter-button-tag:hover,
 button.filter-button-country.glass-button:hover,
 button.filter-button-date.glass-button:hover,
-button.filter-button-theme.glass-button:hover {
+button.filter-button-theme.glass-button:hover,
+button.filter-button-tag.glass-button:hover {
   border: 1px solid hsl(187 100% 50%) !important;
   background: hsl(222 47% 15% / 0.9) !important;
   box-shadow: none !important;
@@ -183,15 +229,281 @@ button.filter-button-theme.glass-button:hover {
 button.filter-button-country.active,
 button.filter-button-date.active,
 button.filter-button-theme.active,
+button.filter-button-tag.active,
 .filter-button-country.active,
 .filter-button-date.active,
 .filter-button-theme.active,
+.filter-button-tag.active,
 button.filter-button-country.glass-button.active,
 button.filter-button-date.glass-button.active,
-button.filter-button-theme.glass-button.active {
+button.filter-button-theme.glass-button.active,
+button.filter-button-tag.glass-button.active {
   border: 1px solid hsl(187 100% 50%) !important;
   background: hsl(222 47% 15% / 0.9) !important;
   box-shadow: none !important;
   transform: none !important;
+}
+
+/* Date Range Picker Styles - Matching Image Design */
+.date-range-picker-container {
+  background: hsl(0 0% 10% / 0.95);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  border: 1px solid hsl(var(--border) / 0.3);
+  min-width: 600px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.date-range-calendars {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.date-range-calendar-panel {
+  background: hsl(0 0% 10% / 0.95);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  border: 1px solid hsl(var(--border) / 0.2);
+}
+
+.date-range-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding: 0.5rem 0;
+}
+
+.date-range-nav-button {
+  background: hsl(0 0% 15% / 0.8);
+  border: 1px solid hsl(var(--border) / 0.2);
+  border-radius: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.date-range-nav-button:hover {
+  background: hsl(0 0% 20% / 0.9);
+  border-color: hsl(var(--border) / 0.4);
+  color: hsl(var(--foreground));
+}
+
+.date-range-month-year {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  text-transform: capitalize;
+}
+
+.date-range-day-headers {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.date-range-day-header {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  padding: 0.5rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.date-range-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+}
+
+.date-range-day-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  border-radius: 0.5rem;
+  border: none;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.date-range-day-cell:hover:not(:disabled) {
+  background: hsl(0 0% 20% / 0.5);
+  color: hsl(var(--foreground));
+}
+
+.date-range-day-cell:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.date-range-day-other-month {
+  color: hsl(var(--muted-foreground) / 0.5);
+}
+
+.date-range-day-current {
+  position: relative;
+}
+
+.date-range-day-current::after {
+  content: '';
+  position: absolute;
+  bottom: 0.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0.25rem;
+  height: 0.25rem;
+  background: hsl(var(--muted-foreground));
+  border-radius: 50%;
+}
+
+/* Warm brown/gold accent color for selected dates - matching image */
+.date-range-day-in-range {
+  background: hsl(30 50% 60% / 0.3) !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.date-range-day-start,
+.date-range-day-end {
+  background: rgba(0, 211, 239, 1) !important;
+  color: hsl(0 0% 0%) !important;
+  font-weight: 600;
+}
+
+.date-range-day-start:hover,
+.date-range-day-end:hover {
+  background: rgba(0, 211, 239, 1) !important;
+}
+
+/* Action Bar */
+.date-range-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 1rem;
+  border-top: 1px solid hsl(var(--border) / 0.2);
+  margin-top: 1rem;
+}
+
+.date-range-display {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  font-weight: 400;
+}
+
+.date-range-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.date-range-cancel-button {
+  background: hsl(0 0% 10% / 0.95);
+  border: 1px solid hsl(var(--border) / 0.3);
+  border-radius: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.date-range-cancel-button:hover {
+  background: hsl(0 0% 15% / 0.95);
+  border-color: hsl(var(--border) / 0.5);
+  color: hsl(var(--foreground));
+}
+
+.date-range-apply-button {
+  background: rgba(0, 198, 224, 1);
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: hsl(0 0% 0%);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.date-range-apply-button:hover:not(:disabled) {
+  background: rgba(0, 198, 224, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 198, 224, 0.3);
+}
+
+.date-range-apply-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Mobile-specific overrides: keep styling, but collapse to a single box on small screens */
+@media (max-width: 640px) {
+  .date-range-picker-container {
+    width: calc(100% - 20px);
+    min-width: 0 !important;
+    padding: 0.7rem;
+    max-width: 370px;
+    margin-left: 10px;
+  }
+
+  .date-range-calendars {
+    grid-template-columns: 1fr;
+    gap: 0.3rem;
+  }
+
+  /* Hide the right calendar so only one calendar box shows on mobile */
+  .date-range-calendars .date-range-calendar-panel:nth-child(2) {
+    display: none;
+  }
+
+  .date-range-action-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .date-range-month-year {
+    font-size: 0.8rem;
+  }
+
+  .date-range-day-header {
+    font-size: 0.7rem;
+    padding: 0.3rem 0;
+    letter-spacing: 0.01em;
+  }
+
+  .date-range-day-headers {
+    gap: 0.1rem;
+  }
+
+  .date-range-day-cell {
+    font-size: 0.75rem;
+  }
+
+  .date-range-display {
+    font-size: 0.8rem;
+  }
+
+  .date-range-cancel-button,
+  .date-range-apply-button {
+    width: 100%;
+    justify-content: center;
+    padding: 0.5rem 0.75rem;
+  }
 }
 

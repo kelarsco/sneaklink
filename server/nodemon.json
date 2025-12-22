@@ -1,0 +1,26 @@
+{
+  "watch": [
+    "server.js",
+    "routes",
+    "services",
+    "middleware",
+    "config"
+  ],
+  "ignore": [
+    "node_modules/**",
+    "logs/**",
+    "*.log",
+    "utils/scrapers.js",
+    "utils/**/*scraper.js",
+    "utils/**/*Scraper.js",
+    "scripts/**",
+    ".env",
+    ".git/**",
+    "prisma/**"
+  ],
+  "ext": "js,json",
+  "exec": "node server.js",
+  "delay": 2000,
+  "verbose": false
+}
+

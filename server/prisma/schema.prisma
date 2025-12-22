@@ -1,0 +1,323 @@
+// Prisma Schema for Sneaklink SaaS App
+// Compatible with local PostgreSQL and Supabase Postgres
+// Migration-first approach: schema.prisma is the single source of truth
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// USERS
+// ============================================================================
+
+model User {
+  id        String   @id @default(uuid()) // UUID primary key
+  email     String   @unique @db.VarChar(255)
+  name      String   @db.VarChar(200)
+  picture   String?  @db.VarChar(500)
+  
+  // Authentication
+  googleId  String?  @unique @map("google_id") @db.VarChar(255)
+  provider  String   @default("google") @db.VarChar(20) // 'google' | 'email'
+  
+  // Payment integration (Paystack)
+  paystackCustomerCode String? @map("paystack_customer_code") @db.VarChar(100)
+  
+  // Account status
+  isActive      Boolean      @default(true) @map("is_active")
+  accountStatus String       @default("active") @map("account_status") @db.VarChar(20) // 'active' | 'suspended' | 'deactivated'
+  suspensionCount Int        @default(0) @map("suspension_count") // Track number of times user has been suspended
+  
+  // Subscription (embedded for quick access, but also has Subscription table)
+  subscriptionPlan   String?  @map("subscription_plan") @db.VarChar(20) // 'free' | 'starter' | 'pro' | 'enterprise'
+  subscriptionStatus  String?  @map("subscription_status") @default("active") @db.VarChar(20) // 'active' | 'cancelled' | 'expired' | 'pending'
+  subscriptionStartDate DateTime? @map("subscription_start_date") @db.Timestamptz
+  subscriptionEndDate   DateTime? @map("subscription_end_date") @db.Timestamptz
+  subscriptionAutoRenew Boolean   @default(false) @map("subscription_auto_renew")
+  subscriptionBillingCycle String? @map("subscription_billing_cycle") @db.VarChar(20) // 'monthly' | 'annually'
+  
+  // Usage tracking
+  filterQueriesThisMonth    Int      @default(0) @map("filter_queries_this_month")
+  filterQueriesResetDate    DateTime @default(now()) @map("filter_queries_reset_date") @db.Timestamptz
+  csvExportsToday           Int      @default(0) @map("csv_exports_today")
+  csvExportsResetDate       DateTime @default(now()) @map("csv_exports_reset_date") @db.Timestamptz
+  copyOperationsToday       Int      @default(0) @map("copy_operations_today")
+  copyOperationsResetDate  DateTime @default(now()) @map("copy_operations_reset_date") @db.Timestamptz
+  
+  // Device tracking (limited to prevent bloat)
+  maxDevices Int @default(1) @map("max_devices")
+  
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  lastLogin DateTime @default(now()) @map("last_login") @db.Timestamptz
+  
+  // Relations
+  subscriptions Subscription[]
+  sessions      Session[]
+  devices       UserDevice[]
+  supportTickets SupportTicket[]
+  addedStaff    Staff[] @relation("StaffAddedBy")
+  
+  @@index([email])
+  @@index([subscriptionPlan, subscriptionStatus])
+  @@index([accountStatus, isActive])
+  @@map("users")
+}
+
+// Device tracking (separate table to prevent User table bloat)
+model UserDevice {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  deviceId   String   @db.VarChar(64) @map("device_id")
+  lastActive DateTime @default(now()) @map("last_active") @db.Timestamptz
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, deviceId])
+  @@index([userId])
+  @@index([lastActive])
+  @@map("user_devices")
+}
+
+// ============================================================================
+// SUBSCRIPTIONS (Stripe/Paystack ready)
+// ============================================================================
+
+model Subscription {
+  id                        String    @id @default(uuid())
+  userId                    String    @map("user_id")
+  
+  // Plan details
+  plan                      String    @db.VarChar(20) // 'starter' | 'pro' | 'enterprise'
+  billingCycle              String    @default("monthly") @map("billing_cycle") @db.VarChar(20) // 'monthly' | 'annually'
+  
+  // Payment provider (Paystack)
+  paystackCustomerCode      String    @map("paystack_customer_code") @db.VarChar(100)
+  paystackSubscriptionCode  String    @unique @map("paystack_subscription_code") @db.VarChar(100)
+  paystackAuthorizationCode String    @map("paystack_authorization_code") @db.VarChar(100)
+  
+  // Status
+  status                    String    @default("pending") @db.VarChar(20) // 'active' | 'cancelled' | 'expired' | 'pending'
+  
+  // Pricing
+  amount                    Decimal   @db.Decimal(10, 2) // Amount in smallest currency unit
+  currency                  String    @default("NGN") @db.VarChar(3)
+  
+  // Dates
+  startDate                 DateTime  @default(now()) @map("start_date") @db.Timestamptz
+  nextPaymentDate           DateTime  @map("next_payment_date") @db.Timestamptz
+  cancelledAt               DateTime? @map("cancelled_at") @db.Timestamptz
+  cancelledBy               String?   @map("cancelled_by") @db.VarChar(20) // 'user' | 'admin' | 'system'
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  
+  @@index([userId, status])
+  @@index([paystackSubscriptionCode])
+  @@index([status, nextPaymentDate])
+  @@map("subscriptions")
+}
+
+// ============================================================================
+// SESSIONS
+// ============================================================================
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  sessionId    String   @unique @map("session_id") @db.VarChar(255)
+  token        String   @db.Text // Changed from VarChar(500) to Text to support longer JWT tokens
+  ip           String?  @db.VarChar(45) // IPv6 max length
+  isActive     Boolean  @default(true) @map("is_active")
+  lastActivity DateTime @default(now()) @map("last_activity") @db.Timestamptz
+  
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  
+  @@index([userId, isActive])
+  @@index([sessionId, isActive])
+  @@index([lastActivity]) // For TTL cleanup
+  @@map("sessions")
+}
+
+// ============================================================================
+// STORES (Core application data)
+// ============================================================================
+
+model Store {
+  id           String   @id @default(uuid())
+  name         String   @db.VarChar(500)
+  url          String   @unique @db.VarChar(500) // Normalized, lowercase
+  country      String   @db.VarChar(50)
+  productCount Int      @default(1) // Minimum 1 product
+  
+  // Status flags
+  isActive     Boolean  @default(true) @map("is_active")
+  isShopify    Boolean  @default(true) @map("is_shopify")
+  hasFacebookAds Boolean @default(false) @map("has_facebook_ads")
+  
+  // Metadata
+  tags         String[] // Array of tags: 'Dropshipping', 'Print on Demand', 'Currently Running Ads'
+  theme        String?  @db.VarChar(50) // Shopify theme name: 'Dawn', 'Impulse', 'Motion', etc.
+  businessModel String   @default("Unknown") @map("business_model") @db.VarChar(20) // 'Dropshipping' | 'Print on Demand' | 'Traditional' | 'Unknown'
+  source       String   @default("api") @db.VarChar(20) // Short source code
+  
+  // Timestamps
+  dateAdded    DateTime @default(now()) @map("date_added") @db.Timestamptz
+  lastScraped  DateTime @default(now()) @map("last_scraped") @db.Timestamptz
+  
+  @@index([isActive, isShopify, country])
+  @@index([isActive, tags])
+  @@index([dateAdded(sort: Desc)])
+  @@index([lastScraped])
+  @@index([country, isActive])
+  @@map("stores")
+}
+
+// ============================================================================
+// SUPPORT TICKETS
+// ============================================================================
+
+model SupportTicket {
+  id          String   @id @default(uuid())
+  ticketId   String   @unique @map("ticket_id") @db.VarChar(20) // e.g., 'TKT-1234'
+  userId      String?  @map("user_id")
+  
+  // User info (denormalized for quick access)
+  userEmail   String   @map("user_email") @db.VarChar(255)
+  userName    String   @map("user_name") @db.VarChar(200)
+  userPlan    String   @default("free") @map("user_plan") @db.VarChar(20)
+  
+  // Ticket details
+  subject     String   @db.VarChar(500)
+  message     String   @db.Text
+  status      String   @default("open") @db.VarChar(20) // 'open' | 'in-progress' | 'resolved' | 'closed'
+  priority    String   @default("medium") @db.VarChar(20) // 'low' | 'medium' | 'high' | 'urgent'
+  
+  // Replies
+  replies     Json?    // Array of reply objects stored as JSON
+  
+  // Assignment
+  lastRepliedBy String? @map("last_replied_by") @db.VarChar(20) // 'user' | 'admin'
+  lastRepliedAt DateTime? @map("last_replied_at") @db.Timestamptz
+  assignedTo    String?   @map("assigned_to") // User ID
+  
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([userEmail])
+  @@index([createdAt]) // For TTL cleanup
+  @@map("support_tickets")
+}
+
+// ============================================================================
+// STAFF (Admin/Support staff)
+// ============================================================================
+
+model Staff {
+  id                      String    @id @default(uuid())
+  name                    String    @db.VarChar(200)
+  email                   String    @unique @db.VarChar(255)
+  role                    String    @default("support") @db.VarChar(20) // 'admin' | 'moderator' | 'support'
+  permissions             String[]  // Array of permission strings
+  invitationToken         String?   @unique @map("invitation_token") @db.VarChar(64)
+  invitationTokenExpires  DateTime? @map("invitation_token_expires") @db.Timestamptz
+  invitationAccepted      Boolean   @default(false) @map("invitation_accepted")
+  invitationAcceptedAt    DateTime? @map("invitation_accepted_at") @db.Timestamptz
+  addedBy                 String?   @map("added_by") // User ID
+  status                  String    @default("pending") @db.VarChar(20) // 'pending' | 'active' | 'inactive'
+  
+  // Relations
+  addedByUser User? @relation("StaffAddedBy", fields: [addedBy], references: [id], onDelete: SetNull)
+  
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  
+  @@index([email])
+  @@index([status])
+  @@index([invitationToken])
+  @@index([addedBy])
+  @@map("staff")
+}
+
+// ============================================================================
+// AUTHENTIC VISITOR TRACKING
+// ============================================================================
+
+model AuthenticVisitor {
+  id                    String    @id @default(uuid())
+  
+  // Visitor fingerprint (anonymous, GDPR compliant)
+  visitorFingerprint    String    @unique @map("visitor_fingerprint") @db.VarChar(64)
+  
+  // IP information (hashed for privacy)
+  ipHash                String    @map("ip_hash") @db.VarChar(64)
+  
+  // Visitor metadata (for validation)
+  userAgent             String?   @map("user_agent") @db.VarChar(500)
+  referrer              String?   @db.VarChar(500)
+  language              String?   @db.VarChar(10)
+  timezone              String?   @db.VarChar(50)
+  screenResolution      String?   @map("screen_resolution") @db.VarChar(20)
+  
+  // Validation flags
+  isBot                 Boolean   @default(false) @map("is_bot")
+  isSpam                Boolean   @default(false) @map("is_spam")
+  isDataCenter          Boolean   @default(false) @map("is_data_center")
+  hasInteraction        Boolean   @default(false) @map("has_interaction")
+  isValidated           Boolean   @default(false) @map("is_validated")
+  
+  // Session tracking
+  sessionId             String?   @unique @map("session_id") @db.VarChar(64)
+  lastSeen              DateTime  @default(now()) @map("last_seen") @db.Timestamptz
+  
+  // Timestamps
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  
+  @@index([visitorFingerprint])
+  @@index([sessionId])
+  @@index([createdAt(sort: Desc)])
+  @@index([lastSeen])
+  @@index([isValidated, createdAt])
+  @@map("authentic_visitors")
+}
+
+// ============================================================================
+// NOTIFICATION HISTORY
+// ============================================================================
+
+model NotificationHistory {
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id") @db.VarChar(255)
+  notificationType  String    @map("notification_type") @db.VarChar(50)
+  accountStatus     String    @map("account_status") @db.VarChar(20)
+  sentAt            DateTime  @default(now()) @map("sent_at") @db.Timestamptz
+  success           Boolean   @default(false)
+  errorMessage      String?   @map("error_message") @db.Text
+  
+  @@index([userId])
+  @@index([sentAt(sort: Desc)])
+  @@index([notificationType])
+  @@map("notification_history")
+}

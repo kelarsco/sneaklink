@@ -3,6 +3,8 @@
 @tailwind utilities;
 
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+@import './styles/custom.css';
 
 @layer base {
   :root {
@@ -169,7 +171,8 @@
   }
 
   body {
-    @apply bg-background text-foreground font-outfit antialiased;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Plus Jakarta Sans', 'Outfit', sans-serif;
     background: var(--gradient-dark);
     min-height: 100vh;
   }
@@ -193,72 +196,99 @@
   ::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground));
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 @layer components {
   .glass-panel {
-    @apply relative;
-    background: hsl(var(--glass-bg));
-    backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
-    border: 1px solid hsl(var(--glass-border));
+    @apply bg-card/50 backdrop-blur-xl border border-border rounded-2xl;
   }
 
-  .glass-panel::before {
-    content: '';
-    @apply absolute inset-0 pointer-events-none;
-    background: var(--gradient-glass);
-  }
-
-  .glass-card {
-    @apply glass-panel rounded-xl;
-    box-shadow: var(--shadow-card);
-  }
-
-  .glass-button {
-    @apply glass-panel rounded-lg px-4 py-2 font-medium transition-all duration-200;
-  }
-
-  .glass-button:hover {
-    background: hsl(222 47% 15% / 0.8);
-    border-color: hsl(var(--primary) / 0.5);
-  }
-
-  .gradient-text {
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+  .glass-panel-strong {
+    @apply bg-card/80 backdrop-blur-2xl border border-border rounded-2xl;
   }
 
   .glow-effect {
-    box-shadow: var(--shadow-glow);
+    box-shadow: 0 0 60px -15px hsl(var(--primary) / 0.4);
   }
 
-  .animate-fade-in {
-    animation: fadeIn 0.3s ease-out;
+  .glow-text {
+    text-shadow: 0 0 40px hsl(var(--primary) / 0.5);
   }
 
-  .animate-slide-down {
-    animation: slideDown 0.2s ease-out;
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary to-purple-400 bg-clip-text text-transparent;
   }
 
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+  .nav-link {
+    @apply text-muted-foreground hover:text-foreground transition-colors duration-200 relative;
   }
 
-  @keyframes slideDown {
-    from { opacity: 0; transform: translateY(-8px); }
-    to { opacity: 1; transform: translateY(0); }
+  .nav-link::after {
+    content: '';
+    @apply absolute bottom-0 left-0 w-0 h-0.5 bg-primary transition-all duration-300;
   }
 
-  @keyframes pulse-glow {
-    0%, 100% { box-shadow: 0 0 20px hsl(187 100% 50% / 0.2); }
-    50% { box-shadow: 0 0 40px hsl(187 100% 50% / 0.4); }
-  }
-
-  .pulse-glow {
-    animation: pulse-glow 2s ease-in-out infinite;
+  .nav-link:hover::after {
+    @apply w-full;
   }
 }
+
+@layer utilities {
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-glow-pulse {
+    animation: glow-pulse 3s ease-in-out infinite;
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.8s ease-out forwards;
+  }
+
+  .animation-delay-200 {
+    animation-delay: 0.2s;
+  }
+
+  .animation-delay-400 {
+    animation-delay: 0.4s;
+  }
+
+  .animation-delay-600 {
+    animation-delay: 0.6s;
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+
+  @keyframes glow-pulse {
+    0%, 100% {
+      box-shadow: 0 0 60px -15px hsl(var(--primary) / 0.4);
+    }
+    50% {
+      box-shadow: 0 0 80px -10px hsl(var(--primary) / 0.6);
+    }
+  }
+
+  @keyframes fade-up {
+    0% {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+

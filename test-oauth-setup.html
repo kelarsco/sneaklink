@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google OAuth Setup Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .test-section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        .success { color: #4ade80; }
+        .error { color: #f87171; }
+        .warning { color: #fbbf24; }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #2563eb; }
+        pre {
+            background: #1a1a1a;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Google OAuth Setup Test</h1>
+    
+    <div class="test-section">
+        <h2>1. Check Environment Variables</h2>
+        <div id="env-check">Loading...</div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Test Backend Connection</h2>
+        <button onclick="testBackend()">Test Backend API</button>
+        <div id="backend-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Test Google Script Loading</h2>
+        <button onclick="loadGoogleScript()">Load Google Identity Services</button>
+        <div id="google-script-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Test Google OAuth Initialization</h2>
+        <div id="google-init-result">Click "Load Google Script" first</div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. Test Full OAuth Flow</h2>
+        <div id="google-signin-button"></div>
+        <div id="oauth-result"></div>
+    </div>
+
+    <script>
+        const CLIENT_ID = '897917467114-eabq6cjm1hq5vdjopr0j73onrfnsn20n.apps.googleusercontent.com';
+        const API_URL = 'http://localhost:3000/api';
+
+        // Check environment
+        document.getElementById('env-check').innerHTML = `
+            <p><strong>Client ID:</strong> <span class="${CLIENT_ID ? 'success' : 'error'}">${CLIENT_ID ? CLIENT_ID.substring(0, 30) + '...' : 'NOT SET'}</span></p>
+            <p><strong>API URL:</strong> <span class="${API_URL ? 'success' : 'error'}">${API_URL || 'NOT SET'}</span></p>
+        `;
+
+        // Test backend
+        async function testBackend() {
+            const resultDiv = document.getElementById('backend-result');
+            resultDiv.innerHTML = '<p>Testing...</p>';
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/google/url`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<p class="success">✅ Backend is working!</p><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                } else {
+                    resultDiv.innerHTML = `<p class="error">❌ Backend error: ${data.error || 'Unknown error'}</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ Cannot connect to backend: ${error.message}</p><p class="warning">Make sure backend is running: <code>cd server && npm run dev</code></p>`;
+            }
+        }
+
+        // Load Google script
+        function loadGoogleScript() {
+            const resultDiv = document.getElementById('google-script-result');
+            
+            if (window.google) {
+                resultDiv.innerHTML = '<p class="success">✅ Google script already loaded</p>';
+                testGoogleInit();
+                return;
+            }
+
+            resultDiv.innerHTML = '<p>Loading Google Identity Services...</p>';
+            
+            const script = document.createElement('script');
+            script.src = 'https://accounts.google.com/gsi/client';
+            script.async = true;
+            script.defer = true;
+            script.onload = () => {
+                resultDiv.innerHTML = '<p class="success">✅ Google script loaded successfully</p>';
+                testGoogleInit();
+            };
+            script.onerror = () => {
+                resultDiv.innerHTML = '<p class="error">❌ Failed to load Google script</p>';
+            };
+            document.head.appendChild(script);
+        }
+
+        // Test Google initialization
+        function testGoogleInit() {
+            const resultDiv = document.getElementById('google-init-result');
+            
+            if (!window.google) {
+                resultDiv.innerHTML = '<p class="error">❌ Google script not loaded</p>';
+                return;
+            }
+
+            try {
+                window.google.accounts.id.initialize({
+                    client_id: CLIENT_ID,
+                    callback: (response) => {
+                        document.getElementById('oauth-result').innerHTML = 
+                            `<p class="success">✅ OAuth callback received!</p><p>Token length: ${response.credential.length}</p>`;
+                        testTokenVerification(response.credential);
+                    },
+                    error_callback: (error) => {
+                        document.getElementById('oauth-result').innerHTML = 
+                            `<p class="error">❌ OAuth Error: ${error.message || JSON.stringify(error)}</p>`;
+                    }
+                });
+
+                // Render button
+                window.google.accounts.id.renderButton(
+                    document.getElementById('google-signin-button'),
+                    {
+                        theme: 'outline',
+                        size: 'large',
+                        width: '100%',
+                        text: 'signin_with',
+                    }
+                );
+
+                resultDiv.innerHTML = '<p class="success">✅ Google OAuth initialized successfully</p>';
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ Initialization error: ${error.message}</p>`;
+            }
+        }
+
+        // Test token verification
+        async function testTokenVerification(idToken) {
+            const resultDiv = document.getElementById('oauth-result');
+            resultDiv.innerHTML += '<p>Verifying token with backend...</p>';
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/google/verify`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idToken })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML += `<p class="success">✅ Token verified! User: ${data.user.name} (${data.user.email})</p>`;
+                } else {
+                    resultDiv.innerHTML += `<p class="error">❌ Verification failed: ${data.error || data.message}</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML += `<p class="error">❌ Verification error: ${error.message}</p>`;
+            }
+        }
+
+        // Auto-load on page load
+        window.addEventListener('load', () => {
+            setTimeout(loadGoogleScript, 1000);
+        });
+    </script>
+</body>
+</html>
