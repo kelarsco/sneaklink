@@ -1,13 +1,18 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, Crown, Grid3X3, LogOut, User, Sparkles, Zap, Rocket } from "lucide-react";
+import { ChevronDown, Crown, Grid3X3, LogOut, User, Sparkles, Zap, Rocket, Moon, Sun } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "next-themes";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 
 export const Header = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   
   const userName = user?.name || "User";
   const userEmail = user?.email || "";
@@ -74,6 +79,11 @@ export const Header = () => {
   };
   
   const remainingQueries = getRemainingFilterQueries();
+  const isDark = theme === "dark";
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -85,6 +95,10 @@ export const Header = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  };
+
   const handleLogout = async () => {
     setIsDropdownOpen(false);
     await logout();
@@ -95,18 +109,47 @@ export const Header = () => {
   return (
     <header className="fixed top-0 left-0 right-0 h-16 glass-panel z-[1000] border-b border-border/50">
       <div className="h-full w-full px-6 flex items-center justify-between">
-        {/* Logo */}
-        <div className="flex items-center gap-3 cursor-pointer group">
-          <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center glow-effect">
-            <span className="text-primary font-light text-xl">SL</span>
-          </div>
-          <span className="text-xl font-light text-foreground group-hover:text-primary transition-colors">
-            SneakLink
-          </span>
-        </div>
+      {/* Logo */}
+    <a 
+      href="/" 
+      className="flex items-center gap-3 group"
+      onClick={(e) => { 
+        e.preventDefault(); 
+        navigate('/dashboard'); 
+      }}
+    >
+      <img 
+        src="/images/logo-black-text.png" 
+        alt="SneakLink Logo" 
+        className="h-8 dark:hidden"
+      />
+      <img 
+        src="/images/logo-white-text.png" 
+        alt="SneakLink Logo" 
+        className="h-8 hidden dark:block"
+      />
+    </a>
 
         {/* Right side controls */}
         <div className="flex items-center gap-4">
+          {/* Theme Toggle */}
+          {mounted && (
+            <div className={cn(
+              "flex items-center gap-2 px-3 py-2 rounded-full border transition-all backdrop-blur-xl",
+              isDark
+                ? "bg-gray-800/50 border-gray-700/50"
+                : "bg-gray-50/80 border-gray-200/50"
+            )}>
+              <Sun className={cn("w-4 h-4 transition-colors", !isDark ? "text-yellow-500" : "text-gray-400")} />
+              <Switch
+                checked={isDark}
+                onCheckedChange={toggleTheme}
+                className="data-[state=checked]:bg-gray-700"
+              />
+              <Moon className={cn("w-4 h-4 transition-colors", isDark ? "text-blue-400" : "text-gray-400")} />
+            </div>
+          )}
+
           {/* User Profile */}
           <div className="relative" ref={dropdownRef}>
           <button

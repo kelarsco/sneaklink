@@ -19,6 +19,7 @@ import { PrismaClient } from '@prisma/client';
 
 // Initialize Prisma Client
 // Use singleton pattern to prevent multiple instances
+// Prisma 7: Connection URL passed via DATABASE_URL env var (configured in PrismaClient constructor)
 let prisma;
 
 if (process.env.NODE_ENV === 'production') {

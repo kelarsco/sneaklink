@@ -18,6 +18,7 @@ import AdminLogin from "./pages/AdminLogin";
 import EmailVerification from "./pages/EmailVerification";
 import Account from "./pages/Account";
 import Payment from "./pages/Payment";
+import Receipt from "./pages/Receipt";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import RefundPolicy from "./pages/RefundPolicy";
@@ -72,6 +73,14 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <Payment />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/receipt" 
+                  element={
+                    <ProtectedRoute>
+                      <Receipt />
                     </ProtectedRoute>
                   } 
                 />

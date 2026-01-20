@@ -1,6 +1,7 @@
 import { ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import dashboardPreview from "@/assets/dashboard-preview.png";
+import dashboardPreview from "@/assets/images/dashboard-preview.png";
+import dashboardPreviewt from "@/assets/images/dashboard-preview-wt.png";
 import { useNavigate } from "react-router-dom";
 
 const Hero = () => {
@@ -25,7 +26,7 @@ const Hero = () => {
           {/* Headline */}
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-normal mb-6 opacity-0 animate-fade-up animation-delay-200">
             <span className="text-foreground">Unlock Hidden </span>
-            <span className="gradient-text glow-text">Shopify Stores</span>
+            <span className="gradient-text">Shopify Stores</span>
             <span className="text-foreground"> Instantly</span>
           </h1>
 
@@ -39,7 +40,7 @@ const Hero = () => {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 opacity-0 animate-fade-up animation-delay-600">
             <Button 
               size="lg" 
-              className="bg-primary text-primary-foreground hover:bg-primary/90 font-normal px-8 py-6 text-lg glow-effect"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 font-normal px-8 py-6 text-lg"
               onClick={() => navigate("/dashboard")}
             >
               Start Free Trial
@@ -64,11 +65,18 @@ const Hero = () => {
         {/* Dashboard Preview */}
         <div className="relative max-w-6xl mx-auto opacity-0 animate-fade-up animation-delay-600 mb-20">
           <div className="glass-panel p-2 md:p-4 glow-effect animate-glow-pulse">
-            <img
-              src={dashboardPreview}
-              alt="SneakLink Dashboard - Discover E-Commerce Stores"
-              className="w-full rounded-xl shadow-2xl"
-            />
+        
+             <img 
+       src={dashboardPreview}
+        alt="SneakLink Logo" 
+                className="w-full rounded-xl shadow-2xl hidden dark:block"
+
+      />
+      <img 
+        src={dashboardPreviewt}
+        alt="SneakLink Logo" className="w-full rounded-xl dark:hidden"
+
+      />
           </div>
         </div>
         

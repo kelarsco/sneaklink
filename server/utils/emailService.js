@@ -244,6 +244,172 @@ Terms of Use: ${frontendUrl}/terms-of-service
 };
 
 /**
+ * Send subscription receipt email
+ */
+export const sendSubscriptionReceipt = async (receiptData) => {
+  try {
+    const transporter = createTransporter();
+
+    // Format "From" field
+    const fromEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER;
+    const fromName = process.env.EMAIL_FROM_NAME || 'SneakLink';
+    const fromField = fromEmail.includes('<') ? fromEmail : `${fromName} <${fromEmail}>`;
+
+    // Generate unique Message-ID
+    const messageId = `<${Date.now()}-${Math.random().toString(36).substring(7)}@${fromEmail.split('@')[1] || 'sneaklink.com'}>`;
+    
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
+    
+    // Convert amount from kobo to USD
+    const ngnAmount = receiptData.amount / 100;
+    const usdAmount = ngnAmount / 1500; // Exchange rate
+    
+    // Format date
+    const paymentDate = new Date(receiptData.paymentDate);
+    const formattedDate = paymentDate.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+    
+    // Format plan name
+    const planName = receiptData.plan.charAt(0).toUpperCase() + receiptData.plan.slice(1) + ' Plan';
+    
+    // Receipt download URLs - use full API URLs
+    const apiBaseUrl = process.env.API_URL || process.env.VITE_API_URL || 'http://localhost:3000/api';
+    const invoiceUrl = `${apiBaseUrl}/subscriptions/receipt/${receiptData.reference}/invoice?token=TOKEN_PLACEHOLDER`;
+    const receiptUrl = `${apiBaseUrl}/subscriptions/receipt/${receiptData.reference}/receipt?token=TOKEN_PLACEHOLDER`;
+    
+    // Note: In production, these should be authenticated links or the user should be logged in
+    // For now, link to the receipt page where users can download
+    const receiptPageUrl = `${frontendUrl}/receipt?reference=${receiptData.reference}`;
+    
+    const mailOptions = {
+      from: fromField,
+      to: receiptData.email,
+      subject: `Invoice Paid - ${receiptData.invoiceNumber}`,
+      headers: {
+        'Message-ID': messageId,
+        'X-Mailer': 'SneakLink Email Service',
+        'X-Priority': '1',
+      },
+      replyTo: process.env.EMAIL_REPLY_TO || fromEmail,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        </head>
+        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #000000;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px; background-color: #000000;">
+            
+            <!-- Logo -->
+            <div style="margin-bottom: 30px;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">SneakLink</h1>
+            </div>
+            
+            <!-- Receipt Card -->
+            <div style="background-color: #ffffff; border-radius: 8px; padding: 32px; margin-bottom: 40px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+              
+              <!-- Header with Icon -->
+              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
+                <div style="position: relative; width: 48px; height: 48px; background-color: #f3f4f6; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                  <div style="position: absolute; top: -4px; right: -4px; width: 20px; height: 20px; background-color: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <span style="color: #ffffff; font-size: 12px;">✓</span>
+                  </div>
+                  <span style="font-size: 24px;">📄</span>
+                </div>
+                <h1 style="color: #111827; margin: 0; font-size: 20px; font-weight: 600;">Invoice paid</h1>
+              </div>
+              
+              <!-- Amount -->
+              <div style="margin-bottom: 16px;">
+                <p style="color: #111827; margin: 0; font-size: 48px; font-weight: 700;">$${usdAmount.toFixed(2)}</p>
+              </div>
+              
+              <!-- View Details Link -->
+              <div style="margin-bottom: 32px;">
+                <a href="${frontendUrl}/receipt?reference=${receiptData.reference}" style="color: #4b5563; font-size: 14px; text-decoration: none;">View invoice and payment details &gt;</a>
+              </div>
+              
+              <!-- Payment Information -->
+              <div style="border-top: 1px solid #e5e7eb; padding-top: 24px; margin-bottom: 24px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 0 0 16px 0; width: 50%;">
+                      <p style="color: #6b7280; font-size: 12px; margin: 0 0 4px 0;">Invoice number</p>
+                      <p style="color: #111827; font-size: 14px; font-weight: 500; margin: 0;">${receiptData.invoiceNumber}</p>
+                    </td>
+                    <td style="padding: 0 0 16px 0; width: 50%;">
+                      <p style="color: #6b7280; font-size: 12px; margin: 0 0 4px 0;">Payment date</p>
+                      <p style="color: #111827; font-size: 14px; font-weight: 500; margin: 0;">${formattedDate}</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 0; width: 50%;" colspan="2">
+                      <p style="color: #6b7280; font-size: 12px; margin: 0 0 4px 0;">Payment method</p>
+                      <p style="color: #111827; font-size: 14px; font-weight: 500; margin: 0;">${receiptData.paymentMethod}</p>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+              
+              <!-- Download Buttons -->
+              <div style="display: flex; gap: 12px;">
+                <a href="${receiptPageUrl}" style="flex: 1; display: inline-block; padding: 12px 16px; background-color: #ffffff; border: 1px solid #d1d5db; border-radius: 6px; color: #111827; text-align: center; text-decoration: none; font-size: 14px; font-weight: 500;">View Receipt</a>
+                <a href="${receiptPageUrl}" style="flex: 1; display: inline-block; padding: 12px 16px; background-color: #000000; border: 1px solid #000000; border-radius: 6px; color: #ffffff; text-align: center; text-decoration: none; font-size: 14px; font-weight: 500;">Download PDF</a>
+              </div>
+              <p style="color: #6b7280; font-size: 12px; text-align: center; margin-top: 12px; margin-bottom: 0;">Visit the receipt page to download your invoice or receipt as PDF</p>
+              
+            </div>
+            
+            <!-- Powered by Paystack -->
+            <div style="text-align: center; margin-bottom: 20px;">
+              <p style="color: #9ca3af; font-size: 12px; margin: 0 0 8px 0;">Powered by Paystack</p>
+              <div style="display: flex; justify-content: center; gap: 16px; font-size: 12px;">
+                <a href="${frontendUrl}/terms-of-service" style="color: #9ca3af; text-decoration: none;">Terms</a>
+                <a href="${frontendUrl}/privacy-policy" style="color: #9ca3af; text-decoration: none;">Privacy</a>
+              </div>
+            </div>
+            
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+Invoice Paid - ${receiptData.invoiceNumber}
+
+Hello ${receiptData.name},
+
+Your invoice has been paid successfully.
+
+Amount: $${usdAmount.toFixed(2)}
+Invoice Number: ${receiptData.invoiceNumber}
+Payment Date: ${formattedDate}
+Payment Method: ${receiptData.paymentMethod}
+Plan: ${planName}
+
+View invoice and payment details: ${receiptPageUrl}
+Visit the receipt page to download your invoice or receipt as PDF
+
+Powered by Paystack
+
+---
+© 2025 SneakLink
+      `,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('Error sending subscription receipt email:', error);
+    throw error;
+  }
+};
+
+/**
  * Send ticket reply notification email to user
  * Re-export from services/emailService.js for consistency
  */

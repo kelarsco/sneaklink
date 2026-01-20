@@ -91,27 +91,70 @@ export default function AdminOverview() {
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
         
+        // Check if it's a network/server error
+        const isNetworkError = error.message?.includes('Failed to fetch') || 
+                              error.message?.includes('NetworkError') ||
+                              error.message?.includes('ERR_CONNECTION_REFUSED') ||
+                              error.message?.includes('Network request failed');
+        
         // Check if it's a permission error
         const isPermissionError = error.message?.includes('Permission required') || 
                                   error.message?.includes('permission') ||
                                   error.message?.includes('access denied');
         
-        if (isPermissionError) {
+        if (isNetworkError) {
+          // Server might not be running
+          toast({
+            title: "Connection Error",
+            description: "Cannot connect to the server. Please make sure the backend server is running on port 3000.",
+            variant: "destructive",
+          });
+          // Set default empty data so page still renders
+          setAnalytics({
+            totalUsers: 0,
+            activeUsers: 0,
+            premiumUsers: 0,
+            totalVisitors: 0,
+            linksGenerated: 0,
+            recentSignups: 0,
+          });
+          setRecentUsers([]);
+        } else if (isPermissionError) {
           // Show permission error in normal modal (not destructive)
           toast({
             title: "Limited Access",
             description: "You don't have permission to view this data. Please contact an administrator if you need access.",
             variant: "default", // Normal toast, not destructive
           });
+          // Set default empty data so page still renders
+          setAnalytics({
+            totalUsers: 0,
+            activeUsers: 0,
+            premiumUsers: 0,
+            totalVisitors: 0,
+            linksGenerated: 0,
+            recentSignups: 0,
+          });
+          setRecentUsers([]);
         } else {
           // Only show actual errors if user has permission (otherwise it's expected)
           if (hasPermission('dashboard.view') || hasPermission('users.view')) {
             toast({
               title: "Error",
-              description: "Failed to load dashboard data",
+              description: error.message || "Failed to load dashboard data. Please check the console for details.",
               variant: "destructive",
             });
           }
+          // Set default empty data so page still renders
+          setAnalytics({
+            totalUsers: 0,
+            activeUsers: 0,
+            premiumUsers: 0,
+            totalVisitors: 0,
+            linksGenerated: 0,
+            recentSignups: 0,
+          });
+          setRecentUsers([]);
         }
       } finally {
         setLoading(false);

@@ -1,6 +1,6 @@
 import express from 'express';
-import { processStore, saveStore } from '../services/storeProcessor.js';
-import { runContinuousScrapingJob, getContinuousScrapingStatus } from '../services/continuousScrapingService.js';
+import { saveDiscoveredStore } from '../services/discoveryService.js';
+// Scraping routes removed - use new scraping service instead
 import { authenticate, requireAdmin, optionalAuth } from '../middleware/auth.js';
 import { writeLimiter, scrapingLimiter, storeAdditionLimiter } from '../middleware/rateLimiter.js';
 import { validatePagination, validateStoreInput, validateFilters } from '../middleware/validator.js';
@@ -10,7 +10,8 @@ import { checkPlanAction } from '../middleware/planRestrictions.js';
 import { getCachedSearchResults, cacheSearchResults, invalidateSearchCache } from '../utils/queryCache.js';
 // Prisma imports
 import { getPrisma } from '../config/postgres.js';
-import { findStores, findStoreById, updateStore, deleteStore, countStores } from '../utils/prismaHelpers.js';
+import { findStores, findStoreById, updateStore, deleteStore, countStores, buildBackwardCompatibleFilter } from '../utils/prismaHelpers.js';
+import { buildVisibilityFilter } from '../utils/visibilityRules.js';
 
 const router = express.Router();
 
@@ -47,11 +48,24 @@ router.get('/', optionalAuth, trackDevice, validatePagination, validateFilters, 
     const pageNum = parseInt(page) || 1;
     const limitNum = parseInt(limit) || 50;
 
-    // Build Prisma filter
-    const prismaFilter = {
-      isActive: true,
-      isShopify: true,
-    };
+    // Build visibility filter - only show stores that pass verification + health checks
+    // Check if admin override flags are present (for admin dashboard views)
+    const isAdmin = req.user && (req.user.role === 'admin' || req.user.isAdmin);
+    const includeProtected = req.query.includeProtected === 'true' && isAdmin;
+    const includeInactive = req.query.includeInactive === 'true' && isAdmin;
+    const includeUnverified = req.query.includeUnverified === 'true' && isAdmin;
+    
+    // Build visibility filter (enforces: verified Shopify + accessible health status)
+    // This is the PRIMARY filter - controls what stores are visible by default
+    const visibilityFilter = buildVisibilityFilter({
+      includeProtected,
+      includeInactive,
+      includeUnverified,
+    });
+    
+    // Start with visibility filter - this handles all verification/health logic
+    // DO NOT add isActive/isShopify filters here - visibility filter already handles this
+    const filterConditions = [visibilityFilter];
     
     // Add country filter
     if (countries) {
@@ -60,7 +74,7 @@ router.get('/', optionalAuth, trackDevice, validatePagination, validateFilters, 
         .filter(c => typeof c === 'string' && c.length > 0 && c.length < 100)
         .slice(0, 100);
       if (sanitizedCountries.length > 0) {
-        prismaFilter.country = { in: sanitizedCountries };
+        filterConditions.push({ country: { in: sanitizedCountries } });
         console.log(`[Stores API] Country filter: ${sanitizedCountries.length} countries`);
       }
     }
@@ -72,7 +86,7 @@ router.get('/', optionalAuth, trackDevice, validatePagination, validateFilters, 
         .filter(t => typeof t === 'string' && t.length > 0 && t.length < 100)
         .slice(0, 100);
       if (sanitizedTags.length > 0) {
-        prismaFilter.tags = { hasSome: sanitizedTags };
+        filterConditions.push({ tags: { hasSome: sanitizedTags } });
         if (process.env.DEBUG_STORES_API === 'true') {
           console.log(`[Stores API] Tags filter: ${sanitizedTags.length} tags -`, sanitizedTags);
         }
@@ -86,7 +100,7 @@ router.get('/', optionalAuth, trackDevice, validatePagination, validateFilters, 
         .filter(t => typeof t === 'string' && t.length > 0 && t.length < 100)
         .slice(0, 100);
       if (sanitizedThemes.length > 0) {
-        prismaFilter.theme = { in: sanitizedThemes };
+        filterConditions.push({ theme: { in: sanitizedThemes } });
         if (process.env.DEBUG_STORES_API === 'true') {
           console.log(`[Stores API] Theme filter: ${sanitizedThemes.length} themes -`, sanitizedThemes);
         }
@@ -95,14 +109,18 @@ router.get('/', optionalAuth, trackDevice, validatePagination, validateFilters, 
     
     // Add date range filter
     if (dateFrom || dateTo) {
-      prismaFilter.dateAdded = {};
+      const dateFilter = {};
       if (dateFrom) {
-        prismaFilter.dateAdded.gte = new Date(dateFrom + 'T00:00:00.000Z');
+        dateFilter.gte = new Date(dateFrom + 'T00:00:00.000Z');
       }
       if (dateTo) {
-        prismaFilter.dateAdded.lte = new Date(dateTo + 'T23:59:59.999Z');
+        dateFilter.lte = new Date(dateTo + 'T23:59:59.999Z');
       }
+      filterConditions.push({ dateAdded: dateFilter });
     }
+    
+    // Combine all filters
+    const prismaFilter = { AND: filterConditions };
     
     // Determine sort order based on user plan
     // Free users: oldest to newest (ascending)
@@ -259,20 +277,16 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Get scraping status (requires authentication)
+// Scraping endpoints - Clean interface for new scraping configuration
 router.get('/scrape/status', optionalAuth, async (req, res) => {
   try {
-    const continuousStatus = getContinuousScrapingStatus();
-    
-    // Also get store count from database
-    const storeCount = await countStores({ 
-      isActive: true, 
-      isShopify: true,
-    });
+    const visibilityFilterForCount = buildVisibilityFilter({});
+    const storeCount = await countStores(visibilityFilterForCount);
     
     res.json({
-      ...continuousStatus,
+      isScraping: false,
       totalStores: storeCount,
+      message: 'Scraping system ready for configuration',
     });
   } catch (error) {
     console.error('Error getting scraping status:', error);
@@ -280,22 +294,19 @@ router.get('/scrape/status', optionalAuth, async (req, res) => {
   }
 });
 
-// Manually trigger scraping job (requires authentication and plan access)
+// Scraping endpoint - Accepts custom scraping configuration
 router.post('/scrape', authenticate, checkPlanAction('canScrape'), scrapingLimiter, async (req, res) => {
   try {
-    const jobId = `manual-${Date.now()}`;
+    const { sources, config } = req.body;
+    
     res.json({ 
-      message: 'Continuous scraping job triggered', 
-      jobId,
-      note: 'Job is running in background. Check /scrape/status for progress.'
-    });
-    // Run continuous scraping in background (non-blocking)
-    runContinuousScrapingJob(jobId).catch(err => {
-      console.error('Error in manual continuous scrape:', err);
+      message: 'Scraping system is ready for new configuration',
+      note: 'Please provide scraping sources and configuration. The old system has been removed for clarity.',
+      status: 'ready_for_configuration'
     });
   } catch (error) {
-    console.error('Error triggering scrape job:', error);
-    res.status(500).json({ error: 'Failed to trigger scraping job' });
+    console.error('Error in scrape endpoint:', error);
+    res.status(500).json({ error: 'Failed to process scraping request' });
   }
 });
 
@@ -355,17 +366,42 @@ router.post('/', authenticate, checkPlanAction('canAddStores'), storeAdditionLim
       return res.status(400).json({ error: 'Invalid URL format' });
     }
 
-    const processedStore = await processStore({ url, source });
-    
-    if (!processedStore) {
+    // Use new discovery service (Phase 1) - saves immediately without validation
+    const result = await saveDiscoveredStore({ 
+      url, 
+      source,
+      metadata: {
+        discoverySource: source,
+        discoveryTimestamp: new Date().toISOString(),
+        manual: true,
+      },
+    });
+
+    if (!result.saved) {
+      if (result.reason === 'already_exists') {
+        return res.status(409).json({ 
+          error: 'Store already exists',
+          message: 'This store URL is already in the database.',
+          storeId: result.storeId,
+        });
+      }
       return res.status(400).json({ 
-        error: 'Store validation failed',
-        message: 'Store was rejected. Possible reasons: not a Shopify store, password protected, inactive, or has zero products.'
+        error: 'Failed to save store',
+        message: result.reason || 'Could not save store URL',
       });
     }
 
-    const saveResult = await saveStore(processedStore);
-    res.json(saveResult.store);
+    // Fetch the saved store to return
+    const { getPrisma } = await import('../config/postgres.js');
+    const prisma = getPrisma();
+    const savedStore = await prisma.store.findUnique({
+      where: { id: result.storeId },
+    });
+
+    res.json({
+      ...savedStore,
+      message: 'Store saved successfully. It will be verified and classified by the processing pipeline.',
+    });
   } catch (error) {
     console.error('Error adding store:', error);
     res.status(500).json({ error: 'Failed to add store' });

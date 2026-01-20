@@ -107,12 +107,45 @@ export const FilterSection = ({ onFiltersChange }) => {
     });
   };
 
+  const prevTagsLengthRef = useRef(selectedTags.length);
+  const prevCountriesLengthRef = useRef(selectedCountries.length);
+  const prevThemesLengthRef = useRef(selectedThemes.length);
+  const prevDateRangeRef = useRef(!!(dateFrom && dateTo));
+
   const toggleTag = (tag) => {
     if (!handleFilterClick()) return;
     setSelectedTags(prev => 
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
     );
   };
+
+  // Auto-reset to default state when all filters are fully deselected
+  useEffect(() => {
+    // Check if all filters are now empty (no countries, no themes, no tags, no date range)
+    const allFiltersEmpty = selectedCountries.length === 0 && 
+                            selectedThemes.length === 0 && 
+                            selectedTags.length === 0 && 
+                            !(dateFrom && dateTo);
+    
+    // Check if we transitioned from having at least one filter to having no filters
+    const hadFiltersBefore = prevCountriesLengthRef.current > 0 || 
+                             prevThemesLengthRef.current > 0 || 
+                             prevTagsLengthRef.current > 0 || 
+                             prevDateRangeRef.current;
+    
+    // If we had filters before and now all filters are empty, reset to default state
+    if (hadFiltersBefore && allFiltersEmpty) {
+      // Clear all filters and reset stores list to default state
+      clearAllFilters();
+    }
+    
+    // Update refs for next comparison
+    prevCountriesLengthRef.current = selectedCountries.length;
+    prevThemesLengthRef.current = selectedThemes.length;
+    prevTagsLengthRef.current = selectedTags.length;
+    prevDateRangeRef.current = !!(dateFrom && dateTo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCountries.length, selectedThemes.length, selectedTags.length, dateFrom, dateTo]);
 
   // Calculate total active filters count for display
   const activeFiltersCount = selectedCountries.length + selectedThemes.length + selectedTags.length + (dateFrom && dateTo ? 1 : 0);

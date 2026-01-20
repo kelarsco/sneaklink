@@ -97,16 +97,30 @@ export function MobileBottomNav() {
       fetchNewTicketsCount();
     };
 
+    // Listen for subscription activity events (from AdminSubscriptions page)
+    const handleSubscriptionActivity = (event) => {
+      // Increment notification counter when subscription activity occurs
+      // Only if not on subscriptions page
+      if (location.pathname !== '/manager/subscriptions') {
+        // Optimistically increment the counter
+        setNewSubscribersCount(prev => prev + 1);
+        // Then refetch to get accurate count
+        fetchNewSubscribersCount();
+      }
+    };
+
     window.addEventListener('ticketUpdated', handleTicketUpdate);
     window.addEventListener('ticketDeleted', handleTicketDeleted);
     window.addEventListener('ticketReplied', handleTicketReplied);
+    window.addEventListener('subscriptionActivity', handleSubscriptionActivity);
 
     return () => {
       window.removeEventListener('ticketUpdated', handleTicketUpdate);
       window.removeEventListener('ticketDeleted', handleTicketDeleted);
       window.removeEventListener('ticketReplied', handleTicketReplied);
+      window.removeEventListener('subscriptionActivity', handleSubscriptionActivity);
     };
-  }, []);
+  }, [location.pathname]);
 
   useEffect(() => {
     const handleScroll = () => {

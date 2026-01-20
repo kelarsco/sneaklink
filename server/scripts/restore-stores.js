@@ -17,8 +17,8 @@ const __dirname = path.dirname(__filename);
 // Load environment variables
 dotenv.config({ path: join(__dirname, '../.env') });
 
-// Import scraping service
-import { runContinuousScrapingJob } from '../services/continuousScrapingService.js';
+// Scraping service removed - use new scrapingService.js instead
+// import { runScraping } from '../services/scrapingService.js';
 import Store from '../models/Store.js';
 
 const MONGODB_URI = process.env.MONGODB_URI;

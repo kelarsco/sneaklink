@@ -25,24 +25,29 @@ const Payment = () => {
       monthlyPrice: 49,
       annualPrice: 490,
       description: 'Perfect for individual researchers',
+      currency: 'USD',
     },
     pro: {
       name: 'Pro Plan',
       monthlyPrice: 79,
       annualPrice: 790,
       description: 'Best for growing teams',
+      currency: 'USD',
     },
     enterprise: {
       name: 'Enterprise Plan',
       monthlyPrice: 199,
       annualPrice: 1990,
       description: 'For large organizations',
+      currency: 'USD',
     },
   };
 
   const currentPlan = planDetails[plan] || planDetails.starter;
   const price = billingCycle === 'monthly' ? currentPlan.monthlyPrice : currentPlan.annualPrice;
   const period = billingCycle === 'monthly' ? 'month' : 'year';
+  const currencySymbol = currentPlan.currency === 'NGN' ? '₦' : '$';
+  const displayPrice = currentPlan.currency === 'NGN' ? price.toLocaleString() : price;
 
   useEffect(() => {
     // Check if we're returning from Paystack
@@ -90,15 +95,8 @@ const Payment = () => {
         // Refresh user data to get updated subscription info
         await checkAuth();
         
-        toast({
-          title: "Payment Successful!",
-          description: `Your ${currentPlan.name} subscription (${billingFromUrl}) is now active. Redirecting to dashboard...`,
-        });
-
-        // Redirect to dashboard so user can start using the store scraper
-        setTimeout(() => {
-          navigate('/dashboard', { replace: true });
-        }, 1500);
+        // Redirect to receipt page with payment reference
+        navigate(`/receipt?reference=${reference}`, { replace: true });
       } else {
         throw new Error(result.message || 'Payment verification failed');
       }
@@ -284,7 +282,7 @@ const Payment = () => {
                   <p className="text-sm text-muted-foreground">{currentPlan.description}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-light text-foreground">${price}</p>
+                  <p className="text-2xl font-light text-foreground">{currencySymbol}{displayPrice}</p>
                   <p className="text-sm text-muted-foreground">per {period}</p>
                 </div>
               </div>
@@ -406,7 +404,7 @@ const Payment = () => {
               ) : (
                 <>
                   <CreditCard className="w-5 h-5 mr-2" />
-                  Pay ${price}/{period}
+                  Pay {currencySymbol}{displayPrice}/{period}
                 </>
               )}
             </Button>

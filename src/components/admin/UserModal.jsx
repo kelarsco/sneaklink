@@ -8,8 +8,8 @@ export function UserModal({ user, open, onClose }) {
 
   const planColors = {
     free: "bg-gray-100 text-gray-700 border border-gray-200",
-    basic: "bg-blue-50 text-blue-700 border border-blue-200",
-    premium: "bg-purple-50 text-purple-700 border border-purple-200",
+    starter: "bg-blue-50 text-blue-700 border border-blue-200",
+    pro: "bg-purple-50 text-purple-700 border border-purple-200",
     enterprise: "bg-green-50 text-green-700 border border-green-200",
   };
 

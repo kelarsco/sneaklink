@@ -1,11 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+
+// Logo paths from public directory
+const logoWhiteText = "/images/logo-white-text.png";
+const logoBlackText = "/images/logo-black-text.png";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const navLinks = [
     { name: "Use Cases", href: "#use-cases" },
@@ -19,11 +24,24 @@ const Header = () => {
       <div className="container mx-auto px-6 py-4">
         <nav className="flex items-center justify-between">
           {/* Logo */}
-          <a href="#" className="flex items-center gap-2" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
-            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-normal text-sm">SL</span>
-            </div>
-            <span className="text-xl font-normal text-foreground">SneakLink</span>
+          <a 
+            href="#" 
+            className="flex items-center gap-2" 
+            onClick={(e) => { 
+              e.preventDefault(); 
+              window.scrollTo({ top: 0, behavior: 'smooth' }); 
+            }}
+          >
+            <img 
+              src={logoBlackText} 
+              alt="SneakLink Logo" 
+              className="h-10 dark:hidden"
+            />
+            <img 
+              src={logoWhiteText} 
+              alt="SneakLink Logo" 
+              className="h-10 hidden dark:block"
+            />
           </a>
 
           {/* Desktop Nav */}
@@ -34,14 +52,26 @@ const Header = () => {
                 href={link.href} 
                 className="nav-link text-sm font-normal"
                 onClick={(e) => {
+                  e.preventDefault();
                   if (link.href === "#dashboard") {
-                    e.preventDefault();
                     navigate("/dashboard");
                   } else if (link.href.startsWith("#")) {
-                    e.preventDefault();
-                    const element = document.querySelector(link.href);
-                    if (element) {
-                      element.scrollIntoView({ behavior: 'smooth' });
+                    // If we're on a different page, navigate to homepage first
+                    if (location.pathname !== "/") {
+                      navigate("/");
+                      // Wait for navigation, then scroll to section
+                      setTimeout(() => {
+                        const element = document.querySelector(link.href);
+                        if (element) {
+                          element.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }, 100);
+                    } else {
+                      // Already on homepage, just scroll
+                      const element = document.querySelector(link.href);
+                      if (element) {
+                        element.scrollIntoView({ behavior: 'smooth' });
+                      }
                     }
                   }
                 }}
@@ -80,15 +110,27 @@ const Header = () => {
                   href={link.href}
                   className="text-muted-foreground hover:text-foreground transition-colors"
                   onClick={(e) => {
+                    e.preventDefault();
                     setIsMenuOpen(false);
                     if (link.href === "#dashboard") {
-                      e.preventDefault();
                       navigate("/dashboard");
                     } else if (link.href.startsWith("#")) {
-                      e.preventDefault();
-                      const element = document.querySelector(link.href);
-                      if (element) {
-                        element.scrollIntoView({ behavior: 'smooth' });
+                      // If we're on a different page, navigate to homepage first
+                      if (location.pathname !== "/") {
+                        navigate("/");
+                        // Wait for navigation, then scroll to section
+                        setTimeout(() => {
+                          const element = document.querySelector(link.href);
+                          if (element) {
+                            element.scrollIntoView({ behavior: 'smooth' });
+                          }
+                        }, 100);
+                      } else {
+                        // Already on homepage, just scroll
+                        const element = document.querySelector(link.href);
+                        if (element) {
+                          element.scrollIntoView({ behavior: 'smooth' });
+                        }
                       }
                     }
                   }}

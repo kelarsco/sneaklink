@@ -477,6 +477,18 @@ export default function AdminSupport() {
                       <Badge className={planConfig[ticket.userPlan || 'free']?.color || planConfig.free.color}>
                         {planConfig[ticket.userPlan || 'free']?.label || 'Free'}
                       </Badge>
+                      {ticket.accountStatus === 'suspended' && (
+                        <Badge className="bg-orange-500 hover:bg-orange-600 text-white border-orange-600">
+                          <Lock className="w-3 h-3 mr-1" />
+                          Suspended
+                        </Badge>
+                      )}
+                      {ticket.accountStatus === 'deactivated' && (
+                        <Badge className="bg-red-500 hover:bg-red-600 text-white border-red-600">
+                          <Lock className="w-3 h-3 mr-1" />
+                          Deactivated
+                        </Badge>
+                      )}
                       {ticket.replies && ticket.replies.length > 0 && (
                         <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
                           {ticket.replies.length} {ticket.replies.length === 1 ? 'reply' : 'replies'}
@@ -614,6 +626,18 @@ export default function AdminSupport() {
                   {planConfig[selectedTicket.userPlan]?.label || 'Free'}
                 </Badge>
               )}
+                      {selectedTicket.accountStatus === 'suspended' && (
+                        <Badge className="bg-orange-500 hover:bg-orange-600 text-white border-orange-600">
+                          <Lock className="w-3 h-3 mr-1" />
+                          Suspended
+                        </Badge>
+                      )}
+                      {selectedTicket.accountStatus === 'deactivated' && (
+                        <Badge className="bg-red-500 hover:bg-red-600 text-white border-red-600">
+                          <Lock className="w-3 h-3 mr-1" />
+                          Deactivated
+                        </Badge>
+                      )}
                     </div>
                     <DialogTitle className="text-xl font-light text-gray-900 dark:text-white mt-2 pr-8">
                       {selectedTicket.subject}

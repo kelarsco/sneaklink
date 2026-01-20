@@ -16,54 +16,54 @@ datasource db {
 // ============================================================================
 
 model User {
-  id        String   @id @default(uuid()) // UUID primary key
-  email     String   @unique @db.VarChar(255)
-  name      String   @db.VarChar(200)
-  picture   String?  @db.VarChar(500)
-  
+  id      String  @id @default(uuid()) // UUID primary key
+  email   String  @unique @db.VarChar(255)
+  name    String  @db.VarChar(200)
+  picture String? @db.VarChar(500)
+
   // Authentication
-  googleId  String?  @unique @map("google_id") @db.VarChar(255)
-  provider  String   @default("google") @db.VarChar(20) // 'google' | 'email'
-  
+  googleId String? @unique @map("google_id") @db.VarChar(255)
+  provider String  @default("google") @db.VarChar(20) // 'google' | 'email'
+
   // Payment integration (Paystack)
   paystackCustomerCode String? @map("paystack_customer_code") @db.VarChar(100)
-  
+
   // Account status
-  isActive      Boolean      @default(true) @map("is_active")
-  accountStatus String       @default("active") @map("account_status") @db.VarChar(20) // 'active' | 'suspended' | 'deactivated'
-  suspensionCount Int        @default(0) @map("suspension_count") // Track number of times user has been suspended
-  
+  isActive        Boolean @default(true) @map("is_active")
+  accountStatus   String  @default("active") @map("account_status") @db.VarChar(20) // 'active' | 'suspended' | 'deactivated'
+  suspensionCount Int     @default(0) @map("suspension_count") // Track number of times user has been suspended
+
   // Subscription (embedded for quick access, but also has Subscription table)
-  subscriptionPlan   String?  @map("subscription_plan") @db.VarChar(20) // 'free' | 'starter' | 'pro' | 'enterprise'
-  subscriptionStatus  String?  @map("subscription_status") @default("active") @db.VarChar(20) // 'active' | 'cancelled' | 'expired' | 'pending'
-  subscriptionStartDate DateTime? @map("subscription_start_date") @db.Timestamptz
-  subscriptionEndDate   DateTime? @map("subscription_end_date") @db.Timestamptz
-  subscriptionAutoRenew Boolean   @default(false) @map("subscription_auto_renew")
-  subscriptionBillingCycle String? @map("subscription_billing_cycle") @db.VarChar(20) // 'monthly' | 'annually'
-  
+  subscriptionPlan         String?   @map("subscription_plan") @db.VarChar(20) // 'free' | 'starter' | 'pro' | 'enterprise'
+  subscriptionStatus       String?   @default("active") @map("subscription_status") @db.VarChar(20) // 'active' | 'cancelled' | 'expired' | 'pending'
+  subscriptionStartDate    DateTime? @map("subscription_start_date") @db.Timestamptz
+  subscriptionEndDate      DateTime? @map("subscription_end_date") @db.Timestamptz
+  subscriptionAutoRenew    Boolean   @default(false) @map("subscription_auto_renew")
+  subscriptionBillingCycle String?   @map("subscription_billing_cycle") @db.VarChar(20) // 'monthly' | 'annually'
+
   // Usage tracking
-  filterQueriesThisMonth    Int      @default(0) @map("filter_queries_this_month")
-  filterQueriesResetDate    DateTime @default(now()) @map("filter_queries_reset_date") @db.Timestamptz
-  csvExportsToday           Int      @default(0) @map("csv_exports_today")
-  csvExportsResetDate       DateTime @default(now()) @map("csv_exports_reset_date") @db.Timestamptz
-  copyOperationsToday       Int      @default(0) @map("copy_operations_today")
-  copyOperationsResetDate  DateTime @default(now()) @map("copy_operations_reset_date") @db.Timestamptz
-  
+  filterQueriesThisMonth  Int      @default(0) @map("filter_queries_this_month")
+  filterQueriesResetDate  DateTime @default(now()) @map("filter_queries_reset_date") @db.Timestamptz
+  csvExportsToday         Int      @default(0) @map("csv_exports_today")
+  csvExportsResetDate     DateTime @default(now()) @map("csv_exports_reset_date") @db.Timestamptz
+  copyOperationsToday     Int      @default(0) @map("copy_operations_today")
+  copyOperationsResetDate DateTime @default(now()) @map("copy_operations_reset_date") @db.Timestamptz
+
   // Device tracking (limited to prevent bloat)
   maxDevices Int @default(1) @map("max_devices")
-  
+
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
   lastLogin DateTime @default(now()) @map("last_login") @db.Timestamptz
-  
+
   // Relations
-  subscriptions Subscription[]
-  sessions      Session[]
-  devices       UserDevice[]
+  subscriptions  Subscription[]
+  sessions       Session[]
+  devices        UserDevice[]
   supportTickets SupportTicket[]
-  addedStaff    Staff[] @relation("StaffAddedBy")
-  
+  addedStaff     Staff[]         @relation("StaffAddedBy")
+
   @@index([email])
   @@index([subscriptionPlan, subscriptionStatus])
   @@index([accountStatus, isActive])
@@ -74,11 +74,11 @@ model User {
 model UserDevice {
   id         String   @id @default(uuid())
   userId     String   @map("user_id")
-  deviceId   String   @db.VarChar(64) @map("device_id")
+  deviceId   String   @map("device_id") @db.VarChar(64)
   lastActive DateTime @default(now()) @map("last_active") @db.Timestamptz
-  
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@unique([userId, deviceId])
   @@index([userId])
   @@index([lastActive])
@@ -90,38 +90,38 @@ model UserDevice {
 // ============================================================================
 
 model Subscription {
-  id                        String    @id @default(uuid())
-  userId                    String    @map("user_id")
-  
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+
   // Plan details
-  plan                      String    @db.VarChar(20) // 'starter' | 'pro' | 'enterprise'
-  billingCycle              String    @default("monthly") @map("billing_cycle") @db.VarChar(20) // 'monthly' | 'annually'
-  
+  plan         String @db.VarChar(20) // 'starter' | 'pro' | 'enterprise'
+  billingCycle String @default("monthly") @map("billing_cycle") @db.VarChar(20) // 'monthly' | 'annually'
+
   // Payment provider (Paystack)
-  paystackCustomerCode      String    @map("paystack_customer_code") @db.VarChar(100)
-  paystackSubscriptionCode  String    @unique @map("paystack_subscription_code") @db.VarChar(100)
-  paystackAuthorizationCode String    @map("paystack_authorization_code") @db.VarChar(100)
-  
+  paystackCustomerCode      String @map("paystack_customer_code") @db.VarChar(100)
+  paystackSubscriptionCode  String @unique @map("paystack_subscription_code") @db.VarChar(100)
+  paystackAuthorizationCode String @map("paystack_authorization_code") @db.VarChar(100)
+
   // Status
-  status                    String    @default("pending") @db.VarChar(20) // 'active' | 'cancelled' | 'expired' | 'pending'
-  
+  status String @default("pending") @db.VarChar(20) // 'active' | 'cancelled' | 'expired' | 'pending'
+
   // Pricing
-  amount                    Decimal   @db.Decimal(10, 2) // Amount in smallest currency unit
-  currency                  String    @default("NGN") @db.VarChar(3)
-  
+  amount   Decimal @db.Decimal(10, 2) // Amount in smallest currency unit
+  currency String  @default("NGN") @db.VarChar(3)
+
   // Dates
-  startDate                 DateTime  @default(now()) @map("start_date") @db.Timestamptz
-  nextPaymentDate           DateTime  @map("next_payment_date") @db.Timestamptz
-  cancelledAt               DateTime? @map("cancelled_at") @db.Timestamptz
-  cancelledBy               String?   @map("cancelled_by") @db.VarChar(20) // 'user' | 'admin' | 'system'
-  
+  startDate       DateTime  @default(now()) @map("start_date") @db.Timestamptz
+  nextPaymentDate DateTime  @map("next_payment_date") @db.Timestamptz
+  cancelledAt     DateTime? @map("cancelled_at") @db.Timestamptz
+  cancelledBy     String?   @map("cancelled_by") @db.VarChar(20) // 'user' | 'admin' | 'system'
+
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  
+
   @@index([userId, status])
   @@index([paystackSubscriptionCode])
   @@index([status, nextPaymentDate])
@@ -140,13 +140,13 @@ model Session {
   ip           String?  @db.VarChar(45) // IPv6 max length
   isActive     Boolean  @default(true) @map("is_active")
   lastActivity DateTime @default(now()) @map("last_activity") @db.Timestamptz
-  
+
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-  
+
   @@index([userId, isActive])
   @@index([sessionId, isActive])
   @@index([lastActivity]) // For TTL cleanup
@@ -158,32 +158,73 @@ model Session {
 // ============================================================================
 
 model Store {
-  id           String   @id @default(uuid())
-  name         String   @db.VarChar(500)
-  url          String   @unique @db.VarChar(500) // Normalized, lowercase
-  country      String   @db.VarChar(50)
-  productCount Int      @default(1) // Minimum 1 product
-  
-  // Status flags
-  isActive     Boolean  @default(true) @map("is_active")
-  isShopify    Boolean  @default(true) @map("is_shopify")
+  id           String @id @default(uuid())
+  name         String @db.VarChar(500)
+  url          String @unique @db.VarChar(500) // Normalized, lowercase
+  country      String @db.VarChar(50)
+  productCount Int?   @map("product_count") // Nullable - no defaults on failure
+
+  // Status flags (backward compatibility + new status system)
+  isActive       Boolean @default(true) @map("is_active")
+  isShopify      Boolean @default(true) @map("is_shopify")
   hasFacebookAds Boolean @default(false) @map("has_facebook_ads")
-  
+
+  // NEW: Confidence-based verification status
+  shopifyStatus     String?  @map("shopify_status") @db.VarChar(20) // 'confirmed' | 'probable' | 'unlikely' | 'unverified' | null (discovery phase, legacy records)
+  shopifyConfidence Decimal? @map("shopify_confidence") @db.Decimal(3, 2) // 0.00 - 1.00
+
+  // NEW: Strict store status (primary status for UI visibility)
+  storeStatus String @default("pending") @map("store_status") @db.VarChar(20) // 'pending' | 'active' | 'inactive_shopify' | 'dead' | 'blocked'
+  verified    Boolean @default(false) @map("verified") // true only if all strict verification checks pass
+
+  // NEW: Health check status flags
+  isPasswordProtected Boolean @default(false) @map("is_password_protected")
+  healthStatus        String? @map("health_status") @db.VarChar(30) // 'healthy' | 'possibly_inactive' | 'rate_limited' | 'password_protected' | 'nonexistent' | 'unknown' | null (discovery phase, legacy records)
+  productCountStatus  String  @default("unknown") @map("product_count_status") @db.VarChar(20) // 'confirmed' | 'estimated' | 'unknown' | 'rate_limited'
+
+  // NEW: Classification (confidence-based)
+  primaryBusinessModel    String?  @map("primary_business_model") @db.VarChar(50) // 'Print on Demand' | 'Dropshipping' | 'Branded Ecommerce' | 'Marketplace' | null
+  businessModelConfidence Decimal? @map("business_model_confidence") @db.Decimal(3, 2) // 0.00 - 1.00
+  businessModelScores     Json?    @map("business_model_scores") // Store all scores: { "Print on Demand": 0.85, "Dropshipping": 0.15, ... }
+
   // Metadata
-  tags         String[] // Array of tags: 'Dropshipping', 'Print on Demand', 'Currently Running Ads'
-  theme        String?  @db.VarChar(50) // Shopify theme name: 'Dawn', 'Impulse', 'Motion', etc.
-  businessModel String   @default("Unknown") @map("business_model") @db.VarChar(20) // 'Dropshipping' | 'Print on Demand' | 'Traditional' | 'Unknown'
-  source       String   @default("api") @db.VarChar(20) // Short source code
-  
+  tags          String[] // Array of tags (only assigned when confidence ≥ 0.7)
+  theme         String?  @db.VarChar(50) // Shopify theme name
+  businessModel String   @default("Unknown") @map("business_model") @db.VarChar(20) // Legacy field (backward compatibility)
+  source        String   @default("api") @db.VarChar(20) // Short source code
+
+  // NEW: Signals storage (for explainability)
+  shopifySignals    Json?   @map("shopify_signals") // Store detection signals: { "cartJs": true, "xShopId": true, "cdnShopify": false, ... }
+  discoverySource   String? @map("discovery_source") @db.VarChar(50) // Where this store was discovered
+  discoveryMetadata Json?   @map("discovery_metadata") // Additional source metadata
+
+  // NEW: Admin controls
+  tagsLocked   Boolean   @default(false) @map("tags_locked") // Admin override - prevent auto-tagging updates
+  tagsLockedBy String?   @map("tags_locked_by") @db.VarChar(255) // Admin email/user who locked
+  tagsLockedAt DateTime? @map("tags_locked_at") @db.Timestamptz
+  adminNotes   String?   @map("admin_notes") @db.Text // Admin notes/overrides
+
+  // NEW: Retry tracking
+  lastVerificationAttempt   DateTime? @map("last_verification_attempt") @db.Timestamptz
+  lastClassificationAttempt DateTime? @map("last_classification_attempt") @db.Timestamptz
+  nextRetryAt               DateTime? @map("next_retry_at") @db.Timestamptz // When to retry failed checks
+  retryCount                Int       @default(0) @map("retry_count") // Number of retry attempts
+
   // Timestamps
-  dateAdded    DateTime @default(now()) @map("date_added") @db.Timestamptz
-  lastScraped  DateTime @default(now()) @map("last_scraped") @db.Timestamptz
-  
+  dateAdded   DateTime @default(now()) @map("date_added") @db.Timestamptz
+  lastScraped DateTime @default(now()) @map("last_scraped") @db.Timestamptz
+  lastUpdated DateTime @default(now()) @updatedAt @map("last_updated") @db.Timestamptz
+
   @@index([isActive, isShopify, country])
   @@index([isActive, tags])
   @@index([dateAdded(sort: Desc)])
   @@index([lastScraped])
   @@index([country, isActive])
+  @@index([shopifyStatus, shopifyConfidence])
+  @@index([primaryBusinessModel, businessModelConfidence])
+  @@index([healthStatus, productCountStatus])
+  @@index([storeStatus, verified]) // Index for UI visibility queries
+  @@index([nextRetryAt])
   @@map("stores")
 }
 
@@ -192,36 +233,37 @@ model Store {
 // ============================================================================
 
 model SupportTicket {
-  id          String   @id @default(uuid())
-  ticketId   String   @unique @map("ticket_id") @db.VarChar(20) // e.g., 'TKT-1234'
-  userId      String?  @map("user_id")
-  
+  id       String  @id @default(uuid())
+  ticketId String  @unique @map("ticket_id") @db.VarChar(20) // e.g., 'TKT-1234'
+  userId   String? @map("user_id")
+
   // User info (denormalized for quick access)
-  userEmail   String   @map("user_email") @db.VarChar(255)
-  userName    String   @map("user_name") @db.VarChar(200)
-  userPlan    String   @default("free") @map("user_plan") @db.VarChar(20)
-  
+  userEmail     String  @map("user_email") @db.VarChar(255)
+  userName      String  @map("user_name") @db.VarChar(200)
+  userPlan      String  @default("free") @map("user_plan") @db.VarChar(20)
+  accountStatus String? @map("account_status") @db.VarChar(20) // 'active' | 'suspended' | 'deactivated'
+
   // Ticket details
-  subject     String   @db.VarChar(500)
-  message     String   @db.Text
-  status      String   @default("open") @db.VarChar(20) // 'open' | 'in-progress' | 'resolved' | 'closed'
-  priority    String   @default("medium") @db.VarChar(20) // 'low' | 'medium' | 'high' | 'urgent'
-  
+  subject  String @db.VarChar(500)
+  message  String @db.Text
+  status   String @default("open") @db.VarChar(20) // 'open' | 'in-progress' | 'resolved' | 'closed'
+  priority String @default("medium") @db.VarChar(20) // 'low' | 'medium' | 'high' | 'urgent'
+
   // Replies
-  replies     Json?    // Array of reply objects stored as JSON
-  
+  replies Json? // Array of reply objects stored as JSON
+
   // Assignment
-  lastRepliedBy String? @map("last_replied_by") @db.VarChar(20) // 'user' | 'admin'
+  lastRepliedBy String?   @map("last_replied_by") @db.VarChar(20) // 'user' | 'admin'
   lastRepliedAt DateTime? @map("last_replied_at") @db.Timestamptz
   assignedTo    String?   @map("assigned_to") // User ID
-  
+
   // Relations
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-  
+
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  
+
   @@index([userId, createdAt(sort: Desc)])
   @@index([status, createdAt(sort: Desc)])
   @@index([userEmail])
@@ -234,25 +276,25 @@ model SupportTicket {
 // ============================================================================
 
 model Staff {
-  id                      String    @id @default(uuid())
-  name                    String    @db.VarChar(200)
-  email                   String    @unique @db.VarChar(255)
-  role                    String    @default("support") @db.VarChar(20) // 'admin' | 'moderator' | 'support'
-  permissions             String[]  // Array of permission strings
-  invitationToken         String?   @unique @map("invitation_token") @db.VarChar(64)
-  invitationTokenExpires  DateTime? @map("invitation_token_expires") @db.Timestamptz
-  invitationAccepted      Boolean   @default(false) @map("invitation_accepted")
-  invitationAcceptedAt    DateTime? @map("invitation_accepted_at") @db.Timestamptz
-  addedBy                 String?   @map("added_by") // User ID
-  status                  String    @default("pending") @db.VarChar(20) // 'pending' | 'active' | 'inactive'
-  
+  id                     String    @id @default(uuid())
+  name                   String    @db.VarChar(200)
+  email                  String    @unique @db.VarChar(255)
+  role                   String    @default("support") @db.VarChar(20) // 'admin' | 'moderator' | 'support'
+  permissions            String[] // Array of permission strings
+  invitationToken        String?   @unique @map("invitation_token") @db.VarChar(64)
+  invitationTokenExpires DateTime? @map("invitation_token_expires") @db.Timestamptz
+  invitationAccepted     Boolean   @default(false) @map("invitation_accepted")
+  invitationAcceptedAt   DateTime? @map("invitation_accepted_at") @db.Timestamptz
+  addedBy                String?   @map("added_by") // User ID
+  status                 String    @default("pending") @db.VarChar(20) // 'pending' | 'active' | 'inactive'
+
   // Relations
   addedByUser User? @relation("StaffAddedBy", fields: [addedBy], references: [id], onDelete: SetNull)
-  
+
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  
+
   @@index([email])
   @@index([status])
   @@index([invitationToken])
@@ -265,36 +307,36 @@ model Staff {
 // ============================================================================
 
 model AuthenticVisitor {
-  id                    String    @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   // Visitor fingerprint (anonymous, GDPR compliant)
-  visitorFingerprint    String    @unique @map("visitor_fingerprint") @db.VarChar(64)
-  
+  visitorFingerprint String @unique @map("visitor_fingerprint") @db.VarChar(64)
+
   // IP information (hashed for privacy)
-  ipHash                String    @map("ip_hash") @db.VarChar(64)
-  
+  ipHash String @map("ip_hash") @db.VarChar(64)
+
   // Visitor metadata (for validation)
-  userAgent             String?   @map("user_agent") @db.VarChar(500)
-  referrer              String?   @db.VarChar(500)
-  language              String?   @db.VarChar(10)
-  timezone              String?   @db.VarChar(50)
-  screenResolution      String?   @map("screen_resolution") @db.VarChar(20)
-  
+  userAgent        String? @map("user_agent") @db.VarChar(500)
+  referrer         String? @db.VarChar(500)
+  language         String? @db.VarChar(10)
+  timezone         String? @db.VarChar(50)
+  screenResolution String? @map("screen_resolution") @db.VarChar(20)
+
   // Validation flags
-  isBot                 Boolean   @default(false) @map("is_bot")
-  isSpam                Boolean   @default(false) @map("is_spam")
-  isDataCenter          Boolean   @default(false) @map("is_data_center")
-  hasInteraction        Boolean   @default(false) @map("has_interaction")
-  isValidated           Boolean   @default(false) @map("is_validated")
-  
+  isBot          Boolean @default(false) @map("is_bot")
+  isSpam         Boolean @default(false) @map("is_spam")
+  isDataCenter   Boolean @default(false) @map("is_data_center")
+  hasInteraction Boolean @default(false) @map("has_interaction")
+  isValidated    Boolean @default(false) @map("is_validated")
+
   // Session tracking
-  sessionId             String?   @unique @map("session_id") @db.VarChar(64)
-  lastSeen              DateTime  @default(now()) @map("last_seen") @db.Timestamptz
-  
+  sessionId String?  @unique @map("session_id") @db.VarChar(64)
+  lastSeen  DateTime @default(now()) @map("last_seen") @db.Timestamptz
+
   // Timestamps
-  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz
-  
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
   @@index([visitorFingerprint])
   @@index([sessionId])
   @@index([createdAt(sort: Desc)])
@@ -308,14 +350,14 @@ model AuthenticVisitor {
 // ============================================================================
 
 model NotificationHistory {
-  id                String    @id @default(uuid())
-  userId            String    @map("user_id") @db.VarChar(255)
-  notificationType  String    @map("notification_type") @db.VarChar(50)
-  accountStatus     String    @map("account_status") @db.VarChar(20)
-  sentAt            DateTime  @default(now()) @map("sent_at") @db.Timestamptz
-  success           Boolean   @default(false)
-  errorMessage      String?   @map("error_message") @db.Text
-  
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id") @db.VarChar(255)
+  notificationType String   @map("notification_type") @db.VarChar(50)
+  accountStatus    String   @map("account_status") @db.VarChar(20)
+  sentAt           DateTime @default(now()) @map("sent_at") @db.Timestamptz
+  success          Boolean  @default(false)
+  errorMessage     String?  @map("error_message") @db.Text
+
   @@index([userId])
   @@index([sentAt(sort: Desc)])
   @@index([notificationType])

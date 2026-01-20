@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Shield, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { verifyAdminTotp, staffLogin } from "@/services/api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FloatingButtons } from "@/components/FloatingButtons";
 
 const AdminLogin = () => {
   const [code, setCode] = useState("");
@@ -143,19 +144,24 @@ const AdminLogin = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden px-4" style={{ minHeight: '100vh', backgroundColor: '#0a0e1a', color: '#ffffff' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden px-4 bg-gradient-to-br from-[#fafafa] via-[#f5f5f5] to-[#fef9e7] dark:from-gray-950 dark:via-gray-900 dark:to-gray-950" style={{ minHeight: '100vh' }}>
       {/* Background Effects */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/20 via-background to-background" />
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-accent/10 rounded-full blur-3xl" />
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl dark:block hidden" />
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-accent/10 rounded-full blur-3xl dark:block hidden" />
       
       {/* Logo */}
-      <div className="absolute top-8 left-8 flex items-center gap-2 z-10" style={{ color: '#ffffff' }}>
-        <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-          <span className="text-primary-foreground font-light text-sm">SL</span>
-        </div>
-        <span className="text-xl font-light text-foreground">SneakLink Admin</span>
-      </div>
+      <Link to="/" className="absolute top-8 left-8 flex items-center gap-2 z-10">
+        <img 
+          src="/images/logo-black-text.png" 
+          alt="SneakLink Logo" 
+          className="h-8 dark:hidden"
+        />
+        <img 
+          src="/images/logo-white-text.png" 
+          alt="SneakLink Logo" 
+          className="h-8 hidden dark:block"
+        />
+      </Link>
 
       {/* Login Card */}
       <div className="relative z-10 w-full max-w-md">
@@ -165,7 +171,7 @@ const AdminLogin = () => {
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/20 flex items-center justify-center">
               <Shield className="w-8 h-8 text-primary" />
             </div>
-            <h1 className="text-3xl md:text-4xl font-light mb-3" style={{ color: '#ffffff' }}>
+            <h1 className="text-3xl md:text-4xl font-light mb-3 text-foreground">
               Admin Access
             </h1>
           </div>
@@ -277,6 +283,7 @@ const AdminLogin = () => {
           </Tabs>
         </div>
       </div>
+      <FloatingButtons />
     </div>
   );
 };

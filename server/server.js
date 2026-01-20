@@ -12,7 +12,6 @@ import contactRoutes from './routes/contact.js';
 import adminRoutes from './routes/admin.js';
 import subscriptionRoutes from './routes/subscriptions.js';
 import visitorRoutes from './routes/visitors.js';
-import { runContinuousScrapingJob, getContinuousScrapingStatus } from './services/continuousScrapingService.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
 import { securityLogger, requestSizeLimiter, validateOrigin } from './middleware/security.js';
 
@@ -33,14 +32,6 @@ const PORT = process.env.PORT || 3000;
   try {
     await connectPostgres();
     console.log('✅ PostgreSQL connected');
-    
-    // Start initial CONTINUOUS scraping job after database connection
-    console.log('⏳ Waiting 5 seconds before starting initial CONTINUOUS scrape...');
-    setTimeout(() => {
-      runContinuousScrapingJob(`initial-${Date.now()}`).catch(err => {
-        console.error('Error in initial continuous scraping job:', err);
-      });
-    }, 5000);
   } catch (error) {
     console.error('\n❌ PostgreSQL connection failed!');
     console.error('   PostgreSQL is required for the application to work.');
@@ -56,10 +47,37 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
-      scriptSrc: ["'self'", "https://accounts.google.com", "https://js.paystack.co"],
+      // Allow Paystack scripts - must allow both base domain and relative paths
+      scriptSrc: [
+        "'self'", 
+        "https://accounts.google.com", 
+        "https://js.paystack.co",
+        "https://*.paystack.co",
+        "https://paystack.com"
+      ],
+      // scriptSrcElem for <script> elements (separate from scriptSrc)
+      scriptSrcElem: [
+        "'self'",
+        "https://accounts.google.com",
+        "https://js.paystack.co",
+        "https://*.paystack.co",
+        "https://paystack.com"
+      ],
       imgSrc: ["'self'", "data:", "https:", "https://accounts.google.com"],
-      connectSrc: ["'self'", "https://accounts.google.com", "https://oauth2.googleapis.com"],
-      frameSrc: ["'self'", "https://accounts.google.com"],
+      // Allow Paystack API connections
+      connectSrc: [
+        "'self'", 
+        "https://accounts.google.com", 
+        "https://oauth2.googleapis.com",
+        "https://api.paystack.co",
+        "https://*.paystack.co"
+      ],
+      frameSrc: [
+        "'self'", 
+        "https://accounts.google.com",
+        "https://*.paystack.co",
+        "https://paystack.com"
+      ],
     },
   },
   crossOriginEmbedderPolicy: false, // Allow embedding if needed
@@ -129,6 +147,12 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/visitors', visitorRoutes);
 
+// Log routes registration
+console.log('✅ Routes registered:');
+console.log('   - POST /api/subscriptions/initialize');
+console.log('   - POST /api/subscriptions/verify');
+console.log('   - GET  /api/subscriptions/test (health check)');
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -157,45 +181,9 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Set up CONTINUOUS automatic scraping schedule
-// Uses the enhanced continuous scraping service for massive scale
-// Format: minute hour day month day-of-week
+// Store Processing Pipeline removed
 
-// Main continuous scraping job - runs every 5 minutes for maximum throughput
-// Monitor suspended user tickets every minute
-cron.schedule('* * * * *', async () => {
-  try {
-    const { monitorSuspendedUserTickets } = await import('./services/suspendedUserAutomation.js');
-    await monitorSuspendedUserTickets();
-  } catch (err) {
-    console.error('[Server] Error monitoring suspended user tickets:', err);
-  }
-});
-
-cron.schedule('*/5 * * * *', () => {
-  console.log('\n⏰ CONTINUOUS scraping job triggered (5min interval)');
-  runContinuousScrapingJob().catch(err => {
-    console.error('Error in continuous scraping job:', err);
-  });
-});
-
-// Deep scraping job - runs every 6 hours for comprehensive coverage
-cron.schedule('0 */6 * * *', () => {
-  console.log('\n⏰ DEEP scraping job triggered (6 hour interval)');
-  runContinuousScrapingJob(`deep-${Date.now()}`).catch(err => {
-    console.error('Error in deep scraping job:', err);
-  });
-});
-
-// Daily comprehensive scrape - runs once per day at 2 AM
-cron.schedule('0 2 * * *', () => {
-  console.log('\n⏰ DAILY comprehensive scraping job triggered');
-  runContinuousScrapingJob(`daily-${Date.now()}`).catch(err => {
-    console.error('Error in daily scraping job:', err);
-  });
-});
-
-// Graceful shutdown handling - prevents interrupting scraping jobs
+// Graceful shutdown handling
 let isShuttingDown = false;
 
 // Graceful shutdown handler
@@ -208,43 +196,7 @@ const gracefulShutdown = async (signal) => {
   isShuttingDown = true;
   console.log(`\n⚠️  ${signal} received. Starting graceful shutdown...`);
   
-  // Check if scraping is in progress
-  const scrapingStatus = getContinuousScrapingStatus();
-  if (scrapingStatus.isScraping) {
-    console.log(`⏳ Waiting for active scraping job to complete...`);
-    console.log(`   Current job ID: ${scrapingStatus.currentJobId || 'N/A'}`);
-    console.log(`   Stores scraped so far: ${scrapingStatus.totalStoresScraped || 0}`);
-    console.log(`   Stores saved so far: ${scrapingStatus.totalStoresSaved || 0}`);
-    
-    // Wait up to 5 minutes for scraping to complete
-    const maxWaitTime = 5 * 60 * 1000; // 5 minutes
-    const startTime = Date.now();
-    const checkInterval = 2000; // Check every 2 seconds
-    
-    while (Date.now() - startTime < maxWaitTime) {
-      const status = getContinuousScrapingStatus();
-      if (!status.isScraping) {
-        console.log('✅ Scraping job completed. Proceeding with shutdown...');
-        break;
-      }
-      
-      // Show progress every 10 seconds
-      if ((Date.now() - startTime) % 10000 < checkInterval) {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        console.log(`   Still waiting... (${elapsed}s elapsed, max 5min)`);
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, checkInterval));
-    }
-    
-    const finalStatus = getContinuousScrapingStatus();
-    if (finalStatus.isScraping) {
-      console.log('⚠️  Scraping job still running after wait period. Proceeding with shutdown...');
-      console.log('   Note: The scraping job will be interrupted. Progress may be lost.');
-    }
-  } else {
-    console.log('✅ No active scraping jobs. Proceeding with shutdown...');
-  }
+  console.log('✅ Proceeding with shutdown...');
   
   // Close server
   server.close(() => {
@@ -267,17 +219,6 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server running on http://0.0.0.0:${PORT}`);
   console.log(`✅ API available at http://localhost:${PORT}/api`);
   console.log(`✅ Health check: http://localhost:${PORT}/health`);
-  console.log('🔄 MASSIVE AUTOMATIC SCRAPING SYSTEM ENABLED:');
-  console.log('   - Initial scrape: 5 seconds after startup');
-  console.log('   - Continuous scraping: Every 5 minutes (MAXIMUM THROUGHPUT)');
-  console.log('   - Deep scraping: Every 6 hours');
-  console.log('   - Daily comprehensive: Once per day at 2 AM');
-  console.log('   - All sources enabled: Reddit, Marketplace, Search Engines, Social Media,');
-  console.log('     Common Crawl, Free APIs, Certificate Transparency, Fingerprints, CDN,');
-  console.log('     Google Index, TikTok, Instagram, Pinterest, Google Ads');
-  console.log('   - System will run continuously and automatically');
-  console.log('   - Expected: Thousands to millions of stores per day');
-  console.log('   - Graceful shutdown enabled: Scraping jobs will complete before restart');
 }).on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     console.error(`❌ Port ${PORT} is already in use. Please stop the other process or change the PORT in .env`);

@@ -173,15 +173,31 @@ export const checkHealth = async () => {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
     // Remove /api if present to get base URL
     const baseUrl = apiUrl.replace(/\/api\/?$/, '') || 'http://localhost:3000';
-    const response = await fetch(`${baseUrl}/health`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    return response.ok;
+    
+    // Use AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    
+    try {
+      const response = await fetch(`${baseUrl}/health`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      return response.ok;
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      // Don't log connection refused errors - they're expected when server isn't running
+      if (fetchError.name !== 'AbortError' && !fetchError.message.includes('Failed to fetch')) {
+        console.warn('Health check failed:', fetchError.message);
+      }
+      return false;
+    }
   } catch (error) {
-    console.warn('Health check failed:', error.message);
+    // Silently fail - don't spam console when server isn't running
     return false;
   }
 };

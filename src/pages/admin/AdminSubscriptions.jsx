@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,14 @@ import {
   Filter,
   Loader2,
   Coins,
-  X
+  X,
+  Activity,
+  UserPlus,
+  XCircle,
+  CreditCard as CreditCardIcon,
+  ChevronDown,
+  ChevronUp,
+  RefreshCw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -62,6 +69,45 @@ export default function AdminSubscriptions() {
     mrr: 0,
     planBreakdown: {},
   });
+  // Load activity log from localStorage on mount
+  const loadActivityLogFromStorage = () => {
+    try {
+      const stored = localStorage.getItem('admin_subscription_activity_log');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Convert timestamp strings back to Date objects and ensure iconName exists
+        return parsed
+          .map(activity => ({
+            ...activity,
+            timestamp: new Date(activity.timestamp),
+            // Ensure iconName exists (for backward compatibility)
+            iconName: activity.iconName || 'Activity',
+          }))
+          .filter(activity => activity.id && activity.timestamp instanceof Date && !isNaN(activity.timestamp.getTime()))
+          .slice(0, 50); // Keep only last 50
+      }
+    } catch (error) {
+      console.error('[Activity Log] Error loading from localStorage:', error);
+    }
+    return [];
+  };
+
+  // Save activity log to localStorage
+  const saveActivityLogToStorage = (activities) => {
+    try {
+      localStorage.setItem('admin_subscription_activity_log', JSON.stringify(activities));
+    } catch (error) {
+      console.error('[Activity Log] Error saving to localStorage:', error);
+    }
+  };
+
+  const [activityLog, setActivityLog] = useState(loadActivityLogFromStorage);
+  const [isActivityLogExpanded, setIsActivityLogExpanded] = useState(false);
+  const [refreshingSubscriptions, setRefreshingSubscriptions] = useState(false);
+  const previousSubscriptionsRef = useRef([]);
+  const previousSubscriptionsLengthRef = useRef(0);
+  const isInitialLoadRef = useRef(true);
+  const fetchSubscriptionsRef = useRef(null);
 
   // Convert amount based on selected currency
   // Note: Amounts from API are in kobo (NGN cents), so divide by 100 to get NGN
@@ -93,8 +139,208 @@ export default function AdminSubscriptions() {
     }
   }, [toastNotification]);
 
+  // Track subscription activities by comparing previous and current state
+  const trackSubscriptionActivities = (previous, current) => {
+    const activities = [];
+    const currentTime = new Date();
+
+    // Create a map of previous subscriptions for faster lookup
+    const previousMap = new Map(previous.map(prev => [prev.id, prev]));
+
+    // Track new subscriptions (subscribers)
+    const newSubs = current.filter(sub => !previousMap.has(sub.id));
+    
+    console.log(`[Activity Tracking] Found ${newSubs.length} new subscriptions out of ${current.length} total`);
+    
+    if (newSubs.length > 0) {
+      newSubs.forEach((sub, index) => {
+        const activity = {
+          id: `activity-${sub.id}-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
+          type: 'subscription_created',
+          message: `${sub.user || sub.email || 'A user'} subscribed to ${(sub.plan || 'free').charAt(0).toUpperCase() + (sub.plan || 'free').slice(1)} plan`,
+          subscriber: sub.user || sub.email || 'Unknown',
+          plan: sub.plan || 'free',
+          amount: sub.amount,
+          timestamp: currentTime,
+          iconName: 'UserPlus', // Store icon name instead of function for serialization
+          color: 'text-green-600 dark:text-green-400',
+        };
+        activities.push(activity);
+        console.log(`[Activity Tracking] New subscription activity:`, activity);
+
+        // Dispatch event to increment notification counter
+        window.dispatchEvent(new CustomEvent('subscriptionActivity', { 
+          detail: { type: 'new_subscription', activity } 
+        }));
+      });
+    }
+
+    // Track status changes and auto-renewal changes for existing subscriptions
+    current.forEach(currentSub => {
+      const previousSub = previousMap.get(currentSub.id);
+      
+      if (previousSub) {
+        // Check for status changes
+        if (previousSub.status !== currentSub.status) {
+          if (currentSub.status === 'cancelled' || currentSub.status === 'canceled') {
+            const activity = {
+              id: `activity-${currentSub.id}-cancelled-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              type: 'subscription_cancelled',
+              message: `${currentSub.user || currentSub.email} cancelled their ${(currentSub.plan || 'free').charAt(0).toUpperCase() + (currentSub.plan || 'free').slice(1)} subscription`,
+              subscriber: currentSub.user || currentSub.email,
+              plan: currentSub.plan || 'free',
+              timestamp: currentTime,
+              iconName: 'XCircle',
+              color: 'text-red-600 dark:text-red-400',
+            };
+            activities.push(activity);
+
+            window.dispatchEvent(new CustomEvent('subscriptionActivity', { 
+              detail: { type: 'subscription_cancelled', activity } 
+            }));
+          } else if (currentSub.status === 'expired') {
+            const activity = {
+              id: `activity-${currentSub.id}-expired-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              type: 'subscription_expired',
+              message: `${currentSub.user || currentSub.email}'s ${(currentSub.plan || 'free').charAt(0).toUpperCase() + (currentSub.plan || 'free').slice(1)} subscription expired due to payment failure`,
+              subscriber: currentSub.user || currentSub.email,
+              plan: currentSub.plan || 'free',
+              timestamp: currentTime,
+              iconName: 'AlertCircle',
+              color: 'text-orange-600 dark:text-orange-400',
+            };
+            activities.push(activity);
+
+            window.dispatchEvent(new CustomEvent('subscriptionActivity', { 
+              detail: { type: 'payment_failed', activity } 
+            }));
+          } else if (currentSub.status === 'active' && previousSub.status !== 'active') {
+            const activity = {
+              id: `activity-${currentSub.id}-activated-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              type: 'subscription_activated',
+              message: `${currentSub.user || currentSub.email}'s ${(currentSub.plan || 'free').charAt(0).toUpperCase() + (currentSub.plan || 'free').slice(1)} subscription was activated`,
+              subscriber: currentSub.user || currentSub.email,
+              plan: currentSub.plan || 'free',
+              timestamp: currentTime,
+              iconName: 'CheckCircle',
+              color: 'text-green-600 dark:text-green-400',
+            };
+            activities.push(activity);
+
+            window.dispatchEvent(new CustomEvent('subscriptionActivity', { 
+              detail: { type: 'subscription_activated', activity } 
+            }));
+          }
+        }
+
+        // Check for auto-renewal changes (enabled/disabled)
+        // Compare both undefined and actual boolean values
+        const prevAutoRenew = previousSub.autoRenew ?? false;
+        const currAutoRenew = currentSub.autoRenew ?? false;
+        
+        if (prevAutoRenew !== currAutoRenew) {
+          if (currAutoRenew) {
+            const activity = {
+              id: `activity-${currentSub.id}-autorenew-enabled-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              type: 'auto_renew_enabled',
+              message: `${currentSub.user || currentSub.email} enabled auto-renewal for ${(currentSub.plan || 'free').charAt(0).toUpperCase() + (currentSub.plan || 'free').slice(1)} plan`,
+              subscriber: currentSub.user || currentSub.email,
+              plan: currentSub.plan || 'free',
+              timestamp: currentTime,
+              iconName: 'CheckCircle',
+              color: 'text-blue-600 dark:text-blue-400',
+            };
+            activities.push(activity);
+          } else {
+            const activity = {
+              id: `activity-${currentSub.id}-autorenew-disabled-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              type: 'auto_renew_disabled',
+              message: `${currentSub.user || currentSub.email} disabled auto-renewal for ${(currentSub.plan || 'free').charAt(0).toUpperCase() + (currentSub.plan || 'free').slice(1)} plan`,
+              subscriber: currentSub.user || currentSub.email,
+              plan: currentSub.plan || 'free',
+              timestamp: currentTime,
+              iconName: 'XCircle',
+              color: 'text-yellow-600 dark:text-yellow-400',
+            };
+            activities.push(activity);
+          }
+
+          window.dispatchEvent(new CustomEvent('subscriptionActivity', { 
+            detail: { type: 'auto_renew_changed', activity: activities[activities.length - 1] } 
+          }));
+        }
+      }
+    });
+
+    // Check for payment issues (subscriptions that failed)
+    current.forEach(sub => {
+      if (sub.status === 'expired' || (sub.status === 'cancelled' && sub.cancelledBy === 'system')) {
+        // This is a payment issue - check if we already logged it
+        const existingActivity = activities.find(a => 
+          (a.type === 'subscription_expired' || a.type === 'payment_issue') && 
+          a.subscriber === (sub.user || sub.email)
+        );
+        
+        if (!existingActivity) {
+          const activity = {
+            id: `activity-${sub.id}-payment-issue-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            type: 'payment_issue',
+            message: `Payment issue: ${sub.user || sub.email}'s ${(sub.plan || 'free').charAt(0).toUpperCase() + (sub.plan || 'free').slice(1)} subscription failed`,
+            subscriber: sub.user || sub.email,
+            plan: sub.plan || 'free',
+            timestamp: currentTime,
+            iconName: 'AlertCircle',
+            color: 'text-red-600 dark:text-red-400',
+          };
+          activities.push(activity);
+
+          window.dispatchEvent(new CustomEvent('subscriptionActivity', { 
+            detail: { type: 'payment_issue', activity } 
+          }));
+        }
+      }
+    });
+
+    // Add new activities to the log (prepend for chronological order - newest first)
+    if (activities.length > 0) {
+      console.log(`[Activity Log] Adding ${activities.length} new activities:`, activities);
+      setActivityLog(prev => {
+        // Use functional update to ensure we're working with latest state
+        // Deduplicate by ID to prevent duplicates
+        const existingIds = new Set(prev.map(a => a.id));
+        const uniqueNewActivities = activities.filter(a => !existingIds.has(a.id));
+        
+        if (uniqueNewActivities.length === 0) {
+          console.log('[Activity Log] All activities already exist, skipping update');
+          return prev;
+        }
+        
+        const updated = [...uniqueNewActivities, ...prev];
+        // Keep last 50 activities
+        const final = updated.slice(0, 50);
+        console.log(`[Activity Log] Updated activity log: ${prev.length} -> ${final.length} activities (added ${uniqueNewActivities.length} new)`);
+        
+        // Persist to localStorage
+        try {
+          localStorage.setItem('admin_subscription_activity_log', JSON.stringify(final));
+        } catch (error) {
+          console.error('[Activity Log] Error saving to localStorage:', error);
+        }
+        
+        return final;
+      });
+    } else {
+      console.log('[Activity Tracking] No new activities detected');
+    }
+
+    // Update previous subscriptions length
+    previousSubscriptionsLengthRef.current = current.length;
+  };
+
   // Fetch subscriptions data
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchSubscriptions = async () => {
       try {
         setLoading(true);
@@ -106,6 +352,8 @@ export default function AdminSubscriptions() {
         
         const data = await getAdminSubscriptions(params);
         
+        if (!isMounted) return;
+        
         if (data.permissionError) {
           toast.info("You don't have permission to view subscriptions. Some features may be limited.");
           setSubscriptions([]);
@@ -116,33 +364,115 @@ export default function AdminSubscriptions() {
             planBreakdown: {},
           });
         } else {
-          setSubscriptions(data.subscriptions || []);
+          const newSubscriptions = data.subscriptions || [];
+          
+          // Map current subscriptions to same format for comparison
+          // API returns: { id, user (name), email, plan, status, autoRenew, amount, cancelledBy, ... }
+          const currentMapped = newSubscriptions.map(sub => ({
+            id: sub.id,
+            status: sub.status || 'active',
+            autoRenew: sub.autoRenew ?? false,
+            user: sub.user || sub.email || 'Unknown', // user is the name field from API
+            email: sub.email || '',
+            plan: sub.plan || 'free',
+            amount: sub.amount || 0,
+            cancelledBy: sub.cancelledBy,
+          }));
+          
+          // Track subscription activities (only if not initial load and we have previous data)
+          if (!isInitialLoadRef.current && previousSubscriptionsRef.current.length > 0) {
+            console.log('[Activity Tracking] Comparing subscriptions:', {
+              previousCount: previousSubscriptionsRef.current.length,
+              currentCount: currentMapped.length,
+              previousIds: previousSubscriptionsRef.current.map(s => s.id).slice(0, 5),
+              currentIds: currentMapped.map(s => s.id).slice(0, 5),
+              hasNewSubscriptions: currentMapped.length > previousSubscriptionsRef.current.length,
+            });
+            
+            // Track activities by comparing previous and current
+            trackSubscriptionActivities(previousSubscriptionsRef.current, currentMapped);
+          }
+          
+          // On initial load, just set up the ref for future comparisons
+          if (isInitialLoadRef.current) {
+            console.log('[Activity Tracking] Initial load complete, setting up tracking for', currentMapped.length, 'subscriptions');
+            isInitialLoadRef.current = false;
+          }
+          
+          // Always update ref for next comparison (after tracking)
+          previousSubscriptionsRef.current = currentMapped;
+          
+          setSubscriptions(newSubscriptions);
           setStats(data.stats || {
             totalRevenue: 0,
             totalSubscribers: 0,
             mrr: 0,
             planBreakdown: {},
           });
+          
+          // Set initial subscriptions length on first load
+          if (previousSubscriptionsLengthRef.current === 0) {
+            previousSubscriptionsLengthRef.current = newSubscriptions.length;
+          }
         }
       } catch (error) {
+        if (!isMounted) return;
         console.error('Error fetching subscriptions:', error);
         toast.error(error.message || 'Failed to load subscriptions');
         setSubscriptions([]);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
+    // Store fetch function in ref so it can be called manually
+    fetchSubscriptionsRef.current = fetchSubscriptions;
+
     fetchSubscriptions();
     
-    // Refresh subscriptions every 30 seconds to catch new subscriptions
-    const refreshInterval = setInterval(fetchSubscriptions, 30000);
+    // Refresh subscriptions every 15 seconds to catch new subscriptions and activities faster
+    const refreshInterval = setInterval(() => {
+      fetchSubscriptions();
+    }, 15000);
     
-    return () => clearInterval(refreshInterval);
+    return () => {
+      isMounted = false;
+      clearInterval(refreshInterval);
+    };
   }, [dateFrom, dateTo]);
+
+  // Manual refresh function
+  const handleManualRefresh = async () => {
+    if (fetchSubscriptionsRef.current && !refreshingSubscriptions) {
+      setRefreshingSubscriptions(true);
+      try {
+        await fetchSubscriptionsRef.current();
+      } finally {
+        setRefreshingSubscriptions(false);
+      }
+    }
+  };
 
   // Use stats from API
   const { totalRevenue, totalSubscribers, mrr, planBreakdown } = stats;
+
+  // Persist activity log to localStorage whenever it changes
+  useEffect(() => {
+    if (activityLog.length > 0) {
+      try {
+        localStorage.setItem('admin_subscription_activity_log', JSON.stringify(activityLog));
+      } catch (error) {
+        console.error('[Activity Log] Error saving to localStorage:', error);
+      }
+    }
+  }, [activityLog]);
+
+  // Debug: Log activity log changes
+  useEffect(() => {
+    console.log('[Activity Log State] Current activities:', activityLog.length, activityLog);
+  }, [activityLog]);
 
   // Fetch disputes data
   useEffect(() => {
@@ -689,30 +1019,136 @@ export default function AdminSubscriptions() {
         </div>
       </div>
 
-      {/* Plan Breakdown */}
-      <div className={cn(
-        "rounded-2xl p-6 shadow-sm border mb-6 backdrop-blur-xl transition-all",
-        "bg-white/80 dark:bg-gray-900/60 border-gray-100 dark:border-gray-700/50"
-      )}>
-        <h3 className="text-lg font-light text-gray-900 dark:text-white mb-4">Plan Breakdown</h3>
-        {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+      {/* Plan Breakdown and Activity Log - Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Plan Breakdown - 50% Width */}
+        <div className={cn(
+          "rounded-2xl p-6 shadow-sm border backdrop-blur-xl transition-all",
+          "bg-white/80 dark:bg-gray-900/60 border-gray-100 dark:border-gray-700/50"
+        )}>
+          <h3 className="text-lg font-light text-gray-900 dark:text-white mb-4">Plan Breakdown</h3>
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+            </div>
+          ) : Object.keys(planBreakdown).length > 0 ? (
+            <div className="flex flex-wrap gap-3">
+              {Object.entries(planBreakdown).map(([plan, count]) => (
+                <div key={plan} className="flex items-center gap-2">
+                  <Badge className={planColors[plan] || planColors.free}>
+                    {plan.charAt(0).toUpperCase() + plan.slice(1)}
+                  </Badge>
+                  <span className="text-sm font-light text-gray-900 dark:text-white">{count}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 dark:text-gray-400">No active subscriptions</p>
+          )}
+        </div>
+
+        {/* Activity Log - 50% Width */}
+        <div className={cn(
+          "rounded-2xl p-6 shadow-sm border backdrop-blur-xl transition-all",
+          "bg-white/80 dark:bg-gray-900/60 border-gray-100 dark:border-gray-700/50"
+        )}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Activity className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              <h3 className="text-lg font-light text-gray-900 dark:text-white">Activity Log</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleManualRefresh}
+                disabled={refreshingSubscriptions || loading}
+                className={cn(
+                  "flex items-center gap-1 px-2 py-1.5 rounded-lg text-sm font-light transition-all",
+                  "bg-gray-100 dark:bg-gray-800/50 hover:bg-gray-200 dark:hover:bg-gray-700/50",
+                  "text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700/50",
+                  "disabled:opacity-50 disabled:cursor-not-allowed"
+                )}
+                title="Refresh subscriptions"
+              >
+                <RefreshCw className={cn("w-4 h-4", refreshingSubscriptions && "animate-spin")} />
+              </button>
+              {activityLog.length > 2 && (
+                <button
+                  onClick={() => setIsActivityLogExpanded(!isActivityLogExpanded)}
+                  className={cn(
+                    "flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-light transition-all",
+                    "bg-gray-100 dark:bg-gray-800/50 hover:bg-gray-200 dark:hover:bg-gray-700/50",
+                    "text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700/50"
+                  )}
+                >
+                  {isActivityLogExpanded ? (
+                    <>
+                      <ChevronUp className="w-4 h-4" />
+                      <span>Collapse</span>
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="w-4 h-4" />
+                      <span>View All ({activityLog.length})</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
-        ) : Object.keys(planBreakdown).length > 0 ? (
-          <div className="flex flex-wrap gap-3">
-            {Object.entries(planBreakdown).map(([plan, count]) => (
-              <div key={plan} className="flex items-center gap-2">
-                <Badge className={planColors[plan] || planColors.free}>
-                  {plan.charAt(0).toUpperCase() + plan.slice(1)}
-                </Badge>
-                <span className="text-sm font-light text-gray-900 dark:text-white">{count}</span>
-              </div>
-            ))}
+          <div className={cn(
+            "space-y-3 transition-all",
+            isActivityLogExpanded ? "max-h-[400px] overflow-y-auto" : ""
+          )}>
+            {activityLog.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">
+                No recent activities. Activities will appear here when subscriptions are created, modified, or cancelled.
+              </p>
+            ) : (
+              (isActivityLogExpanded ? activityLog : activityLog.slice(0, 2)).map((activity) => {
+                // Map icon name to icon component
+                const iconMap = {
+                  UserPlus: UserPlus,
+                  XCircle: XCircle,
+                  AlertCircle: AlertCircle,
+                  CheckCircle: CheckCircle,
+                  Activity: Activity,
+                };
+                const Icon = activity.iconName ? iconMap[activity.iconName] || Activity : Activity;
+                return (
+                  <div
+                    key={activity.id}
+                    className={cn(
+                      "flex items-start gap-3 p-3 rounded-lg border transition-all",
+                      "bg-gray-50/50 dark:bg-gray-800/30",
+                      "border-gray-200 dark:border-gray-700/50"
+                    )}
+                  >
+                    <div className={cn(
+                      "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
+                      "bg-gray-100 dark:bg-gray-800/50",
+                      activity.color
+                    )}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={cn(
+                        "text-sm font-light mb-1",
+                        "text-gray-900 dark:text-white"
+                      )}>
+                        {activity.message}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {activity.timestamp instanceof Date 
+                          ? activity.timestamp.toLocaleString() 
+                          : new Date(activity.timestamp).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
-        ) : (
-          <p className="text-sm text-gray-500 dark:text-gray-400">No active subscriptions</p>
-        )}
+        </div>
       </div>
 
       {/* Date Range Picker */}

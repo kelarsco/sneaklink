@@ -1,4 +1,8 @@
 import { Link } from "react-router-dom";
+// Logo paths from public directory
+const logoWhiteText = "/images/logo-white-text.png";
+const logoBlackText = "/images/logo-black-text.png";
+
 
 const Footer = () => {
   const links = {
@@ -17,13 +21,26 @@ const Footer = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <a href="#" className="flex items-center gap-2 mb-4" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
-              <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-normal text-sm">SL</span>
-              </div>
-              <span className="text-xl font-normal text-foreground">SneakLink</span>
-            </a>
-            <p className="text-sm text-muted-foreground">
+           <a 
+            href="#" 
+            className="flex items-center gap-4" 
+            onClick={(e) => { 
+              e.preventDefault(); 
+              window.scrollTo({ top: 0, behavior: 'smooth' }); 
+            }}
+          >
+            <img 
+              src={logoBlackText} 
+              alt="SneakLink Logo" 
+              className="h-10 dark:hidden"
+            />
+            <img 
+              src={logoWhiteText} 
+              alt="SneakLink Logo" 
+              className="h-10 hidden dark:block"
+            />
+          </a>
+            <p className="text-sm text-muted-foreground py-10">
               The ultimate Shopify store discovery tool for researchers and analysts.
             </p>
           </div>

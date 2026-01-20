@@ -80,7 +80,7 @@ const Index = () => {
     
     checkAPI();
     
-    // Also set up periodic health checks
+    // Also set up periodic health checks (less frequent to reduce console spam)
     const healthCheckInterval = setInterval(() => {
       checkHealth().then(isHealthy => {
         if (isHealthy && !apiConnected) {
@@ -88,9 +88,9 @@ const Index = () => {
           setError(null);
         }
       }).catch(() => {
-        // Silently fail - don't show errors
+        // Silently fail - don't show errors or spam console
       });
-    }, 5000); // Check every 5 seconds
+    }, 10000); // Check every 10 seconds (reduced frequency)
 
     return () => clearInterval(healthCheckInterval);
   }, []);
