@@ -728,6 +728,7 @@ router.post('/cancel', authenticate, async (req, res) => {
 router.get('/current', authenticate, async (req, res) => {
   try {
     const userId = req.user.userId || req.user.id;
+    const prisma = getPrisma();
 
     const subscription = await prisma.subscription.findFirst({
       where: {

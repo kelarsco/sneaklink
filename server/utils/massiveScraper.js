@@ -8,7 +8,6 @@ import { looksLikeShopifyStore } from './shopifyUrlValidator.js';
 
 /**
  * Scrape Certificate Transparency logs for Shopify domains
- * IMPROVED: Now searches multiple patterns and date ranges for maximum coverage
  * CT logs contain all SSL certificates issued, including myshopify.com subdomains
  */
 export const scrapeCertificateTransparency = async () => {
@@ -18,142 +17,55 @@ export const scrapeCertificateTransparency = async () => {
   try {
     console.log('🔐 Scraping Certificate Transparency logs for Shopify stores...');
     
-    // Multiple search patterns for better coverage
-    const searchPatterns = [
-      '%.myshopify.com',           // All myshopify.com subdomains
-      '%.myshopify.com&exclude=expired', // Exclude expired (faster)
-    ];
+    // Use crt.sh API to search for myshopify.com certificates
+    const searchUrl = 'https://crt.sh/?q=%.myshopify.com&output=json';
     
-    // Also search for recent certificates (last 30 days) for new stores
-    const daysAgo = [1, 7, 14, 30];
-    
-    for (const pattern of searchPatterns) {
-      try {
-        // Search for all certificates
-        const searchUrl = `https://crt.sh/?q=${encodeURIComponent(pattern)}&output=json`;
-        
-        const response = await axios.get(searchUrl, {
-          timeout: 90000, // Increased timeout for large results
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; SneakLinkBot/1.0)',
-          },
-        });
-        
-        const certificates = Array.isArray(response.data) ? response.data : [];
-        console.log(`   Processing ${certificates.length} certificates for pattern: ${pattern}`);
-        
-        for (const cert of certificates) {
-          try {
-            const nameValue = cert.name_value || cert.common_name || '';
-            const names = nameValue.split('\n').map(n => n.trim()).filter(Boolean);
-            
-            for (const name of names) {
-              if (name.includes('.myshopify.com')) {
-                // Extract the subdomain - handle wildcards and multiple domains
-                const matches = name.match(/([a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])\.myshopify\.com/g);
+    try {
+      const response = await axios.get(searchUrl, {
+        timeout: 60000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; SneakLinkBot/1.0)',
+        },
+      });
+      
+      const certificates = Array.isArray(response.data) ? response.data : [];
+      
+      for (const cert of certificates) {
+        try {
+          const nameValue = cert.name_value || cert.common_name || '';
+          const names = nameValue.split('\n').map(n => n.trim()).filter(Boolean);
+          
+          for (const name of names) {
+            if (name.includes('.myshopify.com')) {
+              // Extract the subdomain
+              const match = name.match(/([a-zA-Z0-9-]+)\.myshopify\.com/);
+              if (match) {
+                const subdomain = match[1];
+                const url = `https://${subdomain}.myshopify.com`;
                 
-                if (matches) {
-                  for (const match of matches) {
-                    const subdomainMatch = match.match(/([a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])\.myshopify\.com/);
-                    if (subdomainMatch) {
-                      const subdomain = subdomainMatch[1];
-                      
-                      // Skip common non-store subdomains
-                      const excludedSubdomains = ['admin', 'partners', 'help', 'community', 'developers', 'apps', 'checkout', 'www', 'cdn', 'static', 'assets', 'api', 'status'];
-                      if (excludedSubdomains.some(excluded => subdomain.toLowerCase().startsWith(excluded))) {
-                        continue;
-                      }
-                      
-                      const url = `https://${subdomain}.myshopify.com`;
-                      // URL is already root domain, just normalize case
-                      const normalizedUrl = url.toLowerCase();
-                      
-                      if (!seenUrls.has(normalizedUrl)) {
-                        seenUrls.add(normalizedUrl);
-                        stores.push({
-                          url: normalizedUrl,
-                          source: 'Certificate Transparency',
-                        });
-                      }
-                    }
-                  }
+                if (looksLikeShopifyStore(url) && !seenUrls.has(url.toLowerCase())) {
+                  seenUrls.add(url.toLowerCase());
+                  stores.push({
+                    url,
+                    source: 'Certificate Transparency',
+                  });
                 }
               }
             }
-          } catch (error) {
-            // Skip invalid certificate entries
-            continue;
           }
-        }
-        
-        // Small delay between patterns
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      } catch (error) {
-        // Silently handle timeout errors - they're expected for CT logs
-        if (!error.message.includes('timeout')) {
-          console.error(`   Error scraping CT pattern ${pattern}:`, error.message);
+        } catch (error) {
+          // Skip invalid certificate entries
+          continue;
         }
       }
-    }
-    
-    // Also search for recent certificates (new stores)
-    for (const days of daysAgo) {
-      try {
-        const searchUrl = `https://crt.sh/?q=%.myshopify.com&output=json&limit=10000`;
-        
-        const response = await axios.get(searchUrl, {
-          timeout: 60000,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; SneakLinkBot/1.0)',
-          },
-        });
-        
-        const certificates = Array.isArray(response.data) ? response.data : [];
-        const cutoffDate = new Date();
-        cutoffDate.setDate(cutoffDate.getDate() - days);
-        
-        for (const cert of certificates) {
-          try {
-            const notBefore = cert.not_before ? new Date(cert.not_before) : null;
-            if (notBefore && notBefore >= cutoffDate) {
-              const nameValue = cert.name_value || cert.common_name || '';
-              const names = nameValue.split('\n').map(n => n.trim()).filter(Boolean);
-              
-              for (const name of names) {
-                if (name.includes('.myshopify.com')) {
-                  const match = name.match(/([a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])\.myshopify\.com/);
-                  if (match) {
-                    const subdomain = match[1];
-                    const excludedSubdomains = ['admin', 'partners', 'help', 'community', 'developers', 'apps', 'checkout'];
-                    if (!excludedSubdomains.some(excluded => subdomain.toLowerCase().startsWith(excluded))) {
-                      const url = `https://${subdomain}.myshopify.com`;
-                      // URL is already root domain, just normalize case
-                      const normalizedUrl = url.toLowerCase();
-                      
-                      if (!seenUrls.has(normalizedUrl)) {
-                        seenUrls.add(normalizedUrl);
-                        stores.push({
-                          url: normalizedUrl,
-                          source: 'Certificate Transparency (Recent)',
-                        });
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          } catch (error) {
-            continue;
-          }
-        }
-        
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      } catch (error) {
-        // Continue to next date range
+      
+      console.log(`   Found ${stores.length} unique Shopify stores from CT logs`);
+    } catch (error) {
+      // Silently handle timeout errors - they're expected for CT logs
+      if (!error.message.includes('timeout')) {
+        console.error('Error scraping Certificate Transparency:', error.message);
       }
     }
-    
-    console.log(`   Found ${stores.length} unique Shopify stores from CT logs`);
   } catch (error) {
     // Silently handle timeout errors - they're expected for CT logs
     if (!error.message.includes('timeout')) {

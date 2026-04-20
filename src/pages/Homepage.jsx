@@ -8,6 +8,7 @@ import Pricing from "@/components/homepage/Pricing";
 import FAQ from "@/components/homepage/FAQ";
 import Footer from "@/components/homepage/Footer";
 import { ContactSupportModal } from "@/components/homepage/ContactSupportModal";
+import { FloatingButtons } from "@/components/FloatingButtons";
 
 const Homepage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -42,6 +43,7 @@ const Homepage = () => {
         onOpenChange={setShowSupportModal}
         accountStatus={accountStatus}
       />
+      <FloatingButtons />
     </div>
   );
 };

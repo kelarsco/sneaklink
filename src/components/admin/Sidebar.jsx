@@ -159,17 +159,26 @@ export function Sidebar() {
         : "bg-white/80 border-gray-200/50 shadow-sm"
     )}>
       <div className="flex items-center justify-between h-16 px-4 lg:px-6">
-        {/* Logo Section - Left */}
-        <div className="flex items-center gap-3">
-          <div className={cn(
-            "px-4 py-2 rounded-full border transition-all backdrop-blur-xl",
-            isDark
-              ? "bg-gray-800/50 border-gray-700/50 text-white"
-              : "bg-gray-50/80 border-gray-200/50 text-gray-900"
-          )}>
-            <span className="font-light text-sm">SneakLink</span>
-        </div>
-      </div>
+       {/* Logo */}
+    <a 
+      href="/" 
+      className="flex items-center gap-3 group"
+      onClick={(e) => { 
+        e.preventDefault(); 
+        navigate('/dashboard'); 
+      }}
+    >
+      <img 
+        src="/images/logo-black-text.png" 
+        alt="SneakLink Logo" 
+        className="h-8 dark:hidden"
+      />
+      <img 
+        src="/images/logo-white-text.png" 
+        alt="SneakLink Logo" 
+        className="h-8 hidden dark:block"
+      />
+    </a>
 
         {/* Navigation - Center (Desktop Only) */}
         <nav className={cn(

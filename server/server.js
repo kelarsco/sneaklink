@@ -12,7 +12,6 @@ import contactRoutes from './routes/contact.js';
 import adminRoutes from './routes/admin.js';
 import subscriptionRoutes from './routes/subscriptions.js';
 import visitorRoutes from './routes/visitors.js';
-import { runContinuousScrapingJob, getContinuousScrapingStatus } from './services/continuousScrapingService.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
 import { securityLogger, requestSizeLimiter, validateOrigin } from './middleware/security.js';
 
@@ -33,19 +32,10 @@ const PORT = process.env.PORT || 3000;
   try {
     await connectPostgres();
     console.log('✅ PostgreSQL connected');
-    
-    // Start initial CONTINUOUS scraping job after database connection
-    console.log('⏳ Waiting 5 seconds before starting initial CONTINUOUS scrape...');
-    setTimeout(() => {
-      runContinuousScrapingJob(`initial-${Date.now()}`).catch(err => {
-        console.error('Error in initial continuous scraping job:', err);
-      });
-    }, 5000);
   } catch (error) {
     console.error('\n❌ PostgreSQL connection failed!');
-    console.error('   PostgreSQL is required for the application to work.');
-    console.error('   Please check your DATABASE_URL in .env file.');
-    console.error('   Run: npm run postgres:test');
+    console.error('   Error:', error.message);
+    console.error('   Check DATABASE_URL in server/.env and run: npm run postgres:test');
     console.error('\n⚠️  Server will start but features may be limited.');
   }
 })();
@@ -157,45 +147,54 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Set up CONTINUOUS automatic scraping schedule
-// Uses the enhanced continuous scraping service for massive scale
-// Format: minute hour day month day-of-week
+// Store Processing Pipeline removed
 
-// Main continuous scraping job - runs every 5 minutes for maximum throughput
-// Monitor suspended user tickets every minute
-cron.schedule('* * * * *', async () => {
+// Shopify Store Scraping Scheduler (every 20 minutes)
+import { runShopifyStoreScraping } from './services/shopifyStoreScraper.js';
+
+let isScraping = false;
+
+// Schedule scraping job every 20 minutes
+cron.schedule('*/20 * * * *', async () => {
+  if (isScraping) {
+    console.log('⏸️  Scraping job already running, skipping...');
+    return;
+  }
+
+  isScraping = true;
+  console.log('\n⏰ Scheduled scraping job triggered (20min interval)');
+  
   try {
-    const { monitorSuspendedUserTickets } = await import('./services/suspendedUserAutomation.js');
-    await monitorSuspendedUserTickets();
-  } catch (err) {
-    console.error('[Server] Error monitoring suspended user tickets:', err);
+    await runShopifyStoreScraping();
+  } catch (error) {
+    console.error('❌ Error in scheduled scraping job:', error.message);
+  } finally {
+    isScraping = false;
   }
 });
 
-cron.schedule('*/5 * * * *', () => {
-  console.log('\n⏰ CONTINUOUS scraping job triggered (5min interval)');
-  runContinuousScrapingJob().catch(err => {
-    console.error('Error in continuous scraping job:', err);
-  });
-});
+// Run initial scrape 30 seconds after server starts
+setTimeout(async () => {
+  if (!isScraping) {
+    isScraping = true;
+    console.log('\n🚀 Running initial Shopify store scraping job...');
+    try {
+      await runShopifyStoreScraping();
+    } catch (error) {
+      console.error('❌ Error in initial scraping job:', error.message);
+    } finally {
+      isScraping = false;
+    }
+  }
+}, 30000); // 30 seconds delay
 
-// Deep scraping job - runs every 6 hours for comprehensive coverage
-cron.schedule('0 */6 * * *', () => {
-  console.log('\n⏰ DEEP scraping job triggered (6 hour interval)');
-  runContinuousScrapingJob(`deep-${Date.now()}`).catch(err => {
-    console.error('Error in deep scraping job:', err);
-  });
-});
+console.log('✅ Shopify Store Scraping Scheduler Enabled:');
+console.log('   - Initial scrape: 30 seconds after startup');
+console.log('   - Scheduled scraping: Every 20 minutes');
+console.log('   - Focus: .myshopify.com domains only');
+console.log('   - Sources: Reddit, Global Search, WHOISXML');
 
-// Daily comprehensive scrape - runs once per day at 2 AM
-cron.schedule('0 2 * * *', () => {
-  console.log('\n⏰ DAILY comprehensive scraping job triggered');
-  runContinuousScrapingJob(`daily-${Date.now()}`).catch(err => {
-    console.error('Error in daily scraping job:', err);
-  });
-});
-
-// Graceful shutdown handling - prevents interrupting scraping jobs
+// Graceful shutdown handling
 let isShuttingDown = false;
 
 // Graceful shutdown handler
@@ -208,43 +207,7 @@ const gracefulShutdown = async (signal) => {
   isShuttingDown = true;
   console.log(`\n⚠️  ${signal} received. Starting graceful shutdown...`);
   
-  // Check if scraping is in progress
-  const scrapingStatus = getContinuousScrapingStatus();
-  if (scrapingStatus.isScraping) {
-    console.log(`⏳ Waiting for active scraping job to complete...`);
-    console.log(`   Current job ID: ${scrapingStatus.currentJobId || 'N/A'}`);
-    console.log(`   Stores scraped so far: ${scrapingStatus.totalStoresScraped || 0}`);
-    console.log(`   Stores saved so far: ${scrapingStatus.totalStoresSaved || 0}`);
-    
-    // Wait up to 5 minutes for scraping to complete
-    const maxWaitTime = 5 * 60 * 1000; // 5 minutes
-    const startTime = Date.now();
-    const checkInterval = 2000; // Check every 2 seconds
-    
-    while (Date.now() - startTime < maxWaitTime) {
-      const status = getContinuousScrapingStatus();
-      if (!status.isScraping) {
-        console.log('✅ Scraping job completed. Proceeding with shutdown...');
-        break;
-      }
-      
-      // Show progress every 10 seconds
-      if ((Date.now() - startTime) % 10000 < checkInterval) {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        console.log(`   Still waiting... (${elapsed}s elapsed, max 5min)`);
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, checkInterval));
-    }
-    
-    const finalStatus = getContinuousScrapingStatus();
-    if (finalStatus.isScraping) {
-      console.log('⚠️  Scraping job still running after wait period. Proceeding with shutdown...');
-      console.log('   Note: The scraping job will be interrupted. Progress may be lost.');
-    }
-  } else {
-    console.log('✅ No active scraping jobs. Proceeding with shutdown...');
-  }
+  console.log('✅ Proceeding with shutdown...');
   
   // Close server
   server.close(() => {
@@ -267,17 +230,6 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server running on http://0.0.0.0:${PORT}`);
   console.log(`✅ API available at http://localhost:${PORT}/api`);
   console.log(`✅ Health check: http://localhost:${PORT}/health`);
-  console.log('🔄 MASSIVE AUTOMATIC SCRAPING SYSTEM ENABLED:');
-  console.log('   - Initial scrape: 5 seconds after startup');
-  console.log('   - Continuous scraping: Every 5 minutes (MAXIMUM THROUGHPUT)');
-  console.log('   - Deep scraping: Every 6 hours');
-  console.log('   - Daily comprehensive: Once per day at 2 AM');
-  console.log('   - All sources enabled: Reddit, Marketplace, Search Engines, Social Media,');
-  console.log('     Common Crawl, Free APIs, Certificate Transparency, Fingerprints, CDN,');
-  console.log('     Google Index, TikTok, Instagram, Pinterest, Google Ads');
-  console.log('   - System will run continuously and automatically');
-  console.log('   - Expected: Thousands to millions of stores per day');
-  console.log('   - Graceful shutdown enabled: Scraping jobs will complete before restart');
 }).on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     console.error(`❌ Port ${PORT} is already in use. Please stop the other process or change the PORT in .env`);

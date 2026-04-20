@@ -31,13 +31,15 @@
     "prisma:validate": "prisma validate",
     "postgres:test": "node scripts/test-postgres-connection.js",
     "db:check": "node scripts/check-database-url.js",
+    "db:sync-neon": "node scripts/sync-database-to-neon.js",
+    "db:check-sync-urls": "node scripts/check-sync-urls.js",
     "migrate:data": "node scripts/migrate-mongodb-to-postgres.js",
     "db:create": "powershell -ExecutionPolicy Bypass -File scripts/create-database.ps1",
     "db:create:cmd": "scripts\\create-database.bat",
     "db:create:simple": "scripts\\create-database-simple.bat"
   },
   "dependencies": {
-    "@prisma/client": "5.22.0",
+    "@prisma/client": "6.19.1",
     "axios": "^1.6.2",
     "cheerio": "^1.0.0-rc.12",
     "cors": "^2.8.5",
@@ -54,7 +56,8 @@
     "speakeasy": "^2.0.0"
   },
   "devDependencies": {
-    "prisma": "5.22.0",
-    "nodemon": "^3.0.2"
+    "nodemon": "^3.0.2",
+    "pg": "^8.13.0",
+    "prisma": "6.19.1"
   }
 }

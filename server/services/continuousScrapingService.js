@@ -5,8 +5,28 @@ import {
   scrapeSocialMedia,
   scrapeFreeAPIs,
   scrapeGoogleCustomSearch,
+  scrapeDiscord,
+  scrapeDiscordInvites,
+  scrapeTelegram,
+  scrapeTelegramDirectories,
+  scrapeYouTube,
+  scrapeYouTubeChannels,
+  scrapeLinkedIn,
+  scrapeLinkedInArticles,
+  scrapeForums,
+  scrapeEcommerceForums,
+  scrapeStartupForums,
+  scrapeAppStores,
+  scrapeShopifyAppCaseStudies,
+  scrapeReviewSites,
+  generatePotentialDomains,
+  discoverViaDNS,
+  discoverViaSSLCertificates,
+  scrapeCompetitorAnalysis,
+  scrapeEcommerceAwards,
+  scrapeMarketplaceShowcases,
 } from '../utils/scrapers.js';
-import { scrapeCommonCrawl } from '../utils/commonCrawl.js';
+import { scrapeCommonCrawl, scrapeCommonCrawlByCountry } from '../utils/commonCrawl.js';
 import { runMassiveScrape, scrapeCertificateTransparency } from '../utils/massiveScraper.js';
 import { findNewStoresViaFingerprints } from '../utils/shopifyFingerprintScraper.js';
 import { scrapeSocialMediaForStores } from '../utils/socialMediaScraper.js';
@@ -15,12 +35,10 @@ import { findStoresViaGoogleIndex } from '../utils/googleIndexScraper.js';
 import { processStore, saveStore } from './storeProcessor.js';
 import { getPrisma } from '../config/postgres.js';
 import { filterAlreadyScrapedUrls, getDeduplicationStats } from '../utils/deduplication.js';
-import { normalizeUrlToRoot, prioritizeMyshopifyStores } from '../utils/urlNormalizer.js';
 
 // Scraping state management
 let isScraping = false;
 let lastScrapeTime = null;
-let jobStartTime = null; // Track when current job started
 let totalStoresScraped = 0;
 let totalStoresSaved = 0;
 let currentJobId = null;
@@ -74,6 +92,28 @@ const SCRAPING_CONFIG = {
     
     // NEW: Google index gaps (Tier 3 - Delayed) - ENABLED
     googleIndexGaps: true, // Google time-filtered searches
+    
+    // COMPREHENSIVE DISCOVERY METHODS - ALL ENABLED
+    discord: true, // Discord communities and invites
+    discordInvites: true, // Discord invite links from repositories
+    telegram: true, // Telegram channels and directories
+    telegramDirectories: true, // Telegram channel directories
+    youtube: true, // YouTube video descriptions and comments
+    youtubeChannels: true, // YouTube channel content
+    linkedin: true, // LinkedIn profiles and company pages
+    linkedinArticles: true, // LinkedIn articles and posts
+    forums: true, // General forums and communities
+    ecommerceForums: true, // Specialized e-commerce forums
+    startupForums: true, // Startup and business forums
+    appStores: true, // App stores and marketplaces
+    appCaseStudies: true, // Shopify app case studies
+    reviewSites: true, // Review sites and directories
+    domainGeneration: true, // AI-powered domain generation
+    dnsDiscovery: true, // DNS enumeration techniques
+    sslDiscovery: true, // SSL certificate discovery
+    competitorAnalysis: true, // Competitor intelligence platforms
+    ecommerceAwards: true, // E-commerce awards and recognition
+    marketplaceShowcases: true, // Marketplace success stories
   },
 };
 
@@ -83,10 +123,7 @@ const SCRAPING_CONFIG = {
 export const runContinuousScrapingJob = async (jobId = null) => {
   // Prevent concurrent scraping jobs
   if (isScraping) {
-    const elapsed = jobStartTime ? Math.floor((Date.now() - jobStartTime) / 1000 / 60) : 0;
-    const elapsedSeconds = jobStartTime ? Math.floor((Date.now() - jobStartTime) / 1000) % 60 : 0;
-    console.log(`⏸️  Scraping job already in progress (Job ID: ${currentJobId || 'unknown'}, running for ${elapsed}m ${elapsedSeconds}s), skipping...`);
-    console.log(`   💡 This is normal - the system prevents concurrent jobs. Next job will run when current one completes.`);
+    console.log('⏸️  Scraping job already in progress, skipping...');
     return { success: false, message: 'Job already in progress' };
   }
 
@@ -101,8 +138,7 @@ export const runContinuousScrapingJob = async (jobId = null) => {
 
   isScraping = true;
   currentJobId = jobId || `job-${Date.now()}`;
-  jobStartTime = Date.now(); // Track when this job started
-  const startTime = jobStartTime;
+  const startTime = Date.now();
   
   console.log('\n' + '='.repeat(80));
   console.log('🚀 Starting CONTINUOUS scraping job...');
@@ -167,6 +203,13 @@ export const runContinuousScrapingJob = async (jobId = null) => {
         fn: scrapeCommonCrawl,
         priority: 3,
       });
+      
+      // Also scrape by country for better coverage
+      sources.push({
+        name: 'Common Crawl (By Country)',
+        fn: () => scrapeCommonCrawlByCountry(SCRAPING_CONFIG.COUNTRIES),
+        priority: 3,
+      });
     }
     
     if (SCRAPING_CONFIG.ENABLED_SOURCES.freeAPIs) {
@@ -227,6 +270,167 @@ export const runContinuousScrapingJob = async (jobId = null) => {
       });
     }
     
+    // COMPREHENSIVE DISCOVERY METHODS - ALL ENABLED
+    if (SCRAPING_CONFIG.ENABLED_SOURCES.discord) {
+      sources.push({
+        name: 'Discord Communities',
+        fn: scrapeDiscord,
+        priority: 1, // High priority - real-time discovery
+      });
+    }
+    
+    if (SCRAPING_CONFIG.ENABLED_SOURCES.discordInvites) {
+      sources.push({
+        name: 'Discord Invites from Repositories',
+        fn: scrapeDiscordInvites,
+        priority: 2, // Medium-high priority
+      });
+    }
+    
+    if (SCRAPING_CONFIG.ENABLED_SOURCES.telegram) {
+      sources.push({
+        name: 'Telegram Channels',
+        fn: scrapeTelegram,
+        priority: 1, // High priority - real-time discovery
+      });
+    }
+    
+    if (SCRAPING_CONFIG.ENABLED_SOURCES.telegramDirectories) {
+      sources.push({
+        name: 'Telegram Directories',
+        fn: scrapeTelegramDirectories,
+        priority: 2, // Medium-high priority
+      });
+    }
+    
+    if (SCRAPING_CONFIG.ENABLED_SOURCES.youtube) {
+      sources.push({
+        name: 'YouTube Videos',
+        fn: scrapeYouTube,
+        priority: 2, // Medium-high priority
+      });
+    }
+    
+    if (SCRAPING_CONFIG.ENABLED_SOURCES.youtubeChannels) {
+      sources.push({
+        name: 'YouTube Channels',
+        fn: scrapeYouTubeChannels,
+        priority: 3, // Medium priority
+      });
+    }
+    
+    if (SCRAPING_CONFIG.ENABLED_SOURCES.linkedin) {
+      sources.push({
+        name: 'LinkedIn Profiles',
+        fn: scrapeLinkedIn,
+        priority: 2, // Medium-high priority
+      });
+    }
+    
+    if (SCRAPING_CONFIG.ENABLED_SOURCES.linkedinArticles) {
+      sources.push({
+        name: 'LinkedIn Articles',
+        fn: scrapeLinkedInArticles,
+        priority: 3, // Medium priority
+      });
+    }
+    
+    if (SCRAPING_CONFIG.ENABLED_SOURCES.forums) {
+      sources.push({
+        name: 'General Forums',
+        fn: scrapeForums,
+        priority: 2, // Medium-high priority
+      });
+    }
+    
+    if (SCRAPING_CONFIG.ENABLED_SOURCES.ecommerceForums) {
+      sources.push({
+        name: 'E-commerce Forums',
+        fn: scrapeEcommerceForums,
+        priority: 2, // Medium-high priority
+      });
+    }
+    
+    if (SCRAPING_CONFIG.ENABLED_SOURCES.startupForums) {
+      sources.push({
+        name: 'Startup Forums',
+        fn: scrapeStartupForums,
+        priority: 3, // Medium priority
+      });
+    }
+    
+    if (SCRAPING_CONFIG.ENABLED_SOURCES.appStores) {
+      sources.push({
+        name: 'App Stores',
+        fn: scrapeAppStores,
+        priority: 2, // Medium-high priority
+      });
+    }
+    
+    if (SCRAPING_CONFIG.ENABLED_SOURCES.appCaseStudies) {
+      sources.push({
+        name: 'Shopify App Case Studies',
+        fn: scrapeShopifyAppCaseStudies,
+        priority: 3, // Medium priority
+      });
+    }
+    
+    if (SCRAPING_CONFIG.ENABLED_SOURCES.reviewSites) {
+      sources.push({
+        name: 'Review Sites',
+        fn: scrapeReviewSites,
+        priority: 3, // Medium priority
+      });
+    }
+    
+    if (SCRAPING_CONFIG.ENABLED_SOURCES.domainGeneration) {
+      sources.push({
+        name: 'AI Domain Generation',
+        fn: generatePotentialDomains,
+        priority: 4, // Lower priority - resource intensive
+      });
+    }
+    
+    if (SCRAPING_CONFIG.ENABLED_SOURCES.dnsDiscovery) {
+      sources.push({
+        name: 'DNS Enumeration',
+        fn: discoverViaDNS,
+        priority: 4, // Lower priority - resource intensive
+      });
+    }
+    
+    if (SCRAPING_CONFIG.ENABLED_SOURCES.sslDiscovery) {
+      sources.push({
+        name: 'SSL Certificate Discovery',
+        fn: discoverViaSSLCertificates,
+        priority: 1, // High priority - very effective
+      });
+    }
+    
+    if (SCRAPING_CONFIG.ENABLED_SOURCES.competitorAnalysis) {
+      sources.push({
+        name: 'Competitor Analysis Platforms',
+        fn: scrapeCompetitorAnalysis,
+        priority: 3, // Medium priority
+      });
+    }
+    
+    if (SCRAPING_CONFIG.ENABLED_SOURCES.ecommerceAwards) {
+      sources.push({
+        name: 'E-commerce Awards',
+        fn: scrapeEcommerceAwards,
+        priority: 3, // Medium priority
+      });
+    }
+    
+    if (SCRAPING_CONFIG.ENABLED_SOURCES.marketplaceShowcases) {
+      sources.push({
+        name: 'Marketplace Showcases',
+        fn: scrapeMarketplaceShowcases,
+        priority: 3, // Medium priority
+      });
+    }
+    
     // Execute sources in batches with delays
     for (let i = 0; i < sources.length; i++) {
       const source = sources[i];
@@ -266,8 +470,8 @@ export const runContinuousScrapingJob = async (jobId = null) => {
     // Create a Set of new URLs for fast lookup
     const newUrlsSet = new Set(newUrls);
     
-    // Filter stores to only include new URLs and normalize to root
-    let uniqueStores = [];
+    // Filter stores to only include new URLs
+    const uniqueStores = [];
     const seenUrls = new Set();
     
     for (const store of allStores) {
@@ -278,47 +482,30 @@ export const runContinuousScrapingJob = async (jobId = null) => {
           continue; // Skip stores without URLs
         }
         
-        // Normalize URL to root homepage only (remove subpaths)
-        const normalizedUrl = normalizeUrlToRoot(storeUrl);
-        
-        if (!normalizedUrl) {
-          continue; // Skip invalid URLs
-        }
-        
-        const normalizedLower = normalizedUrl.toLowerCase();
-        
         // Skip if already seen in this batch
-        if (seenUrls.has(normalizedLower)) {
+        if (seenUrls.has(storeUrl.toLowerCase())) {
           continue;
         }
         
-        // Check if normalized URL is already in database
-        const normalizedForDb = normalizedUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
-        if (!newUrlsSet.has(normalizedForDb) && !newUrlsSet.has(normalizedUrl)) {
+        // Skip if already scraped (in database)
+        if (!newUrlsSet.has(storeUrl)) {
           continue; // Already in database, skip
         }
         
-        seenUrls.add(normalizedLower);
-        // Update store URL to normalized root URL
-        uniqueStores.push({
-          ...store,
-          url: normalizedUrl,
-        });
+        seenUrls.add(storeUrl.toLowerCase());
+        const normalizedUrl = store.url.toLowerCase().trim().replace(/\/$/, '').replace(/^https?:\/\//, '');
+        if (!seenUrls.has(normalizedUrl)) {
+          seenUrls.add(normalizedUrl);
+          uniqueStores.push(store);
+        }
       } catch (error) {
         // Skip invalid URLs
         continue;
       }
     }
     
-    // Prioritize .myshopify.com stores (newly launched stores)
-    uniqueStores = prioritizeMyshopifyStores(uniqueStores);
-    
-    // Count .myshopify.com stores
-    const myshopifyCount = uniqueStores.filter(s => s.url?.includes('.myshopify.com')).length;
-    
     console.log(`   📊 Total URLs found: ${allStores.length}`);
     console.log(`   ✨ Unique URLs: ${uniqueStores.length}`);
-    console.log(`   🎯 .myshopify.com stores (prioritized): ${myshopifyCount}`);
     console.log(`   🗑️  Duplicates removed: ${allStores.length - uniqueStores.length}`);
     
     // Log breakdown by source
@@ -343,15 +530,6 @@ export const runContinuousScrapingJob = async (jobId = null) => {
     let skipped = 0;
     let errors = 0;
     let duplicates = 0;
-    
-    // Track rejection reasons
-    const rejectionStats = {
-      not_shopify: 0,
-      password_protected: 0,
-      inactive: 0,
-      zero_products: 0,
-      error: 0,
-    };
     
     // Process in batches to avoid overwhelming the system
     for (let i = 0; i < uniqueStores.length; i += SCRAPING_CONFIG.BATCH_SIZE) {
@@ -380,6 +558,7 @@ export const runContinuousScrapingJob = async (jobId = null) => {
             } catch (error) {
               retries++;
               if (retries < SCRAPING_CONFIG.MAX_RETRIES) {
+                console.log(`   ⚠️  Retry ${retries}/${SCRAPING_CONFIG.MAX_RETRIES} for ${storeData.url}`);
                 await new Promise(resolve => setTimeout(resolve, SCRAPING_CONFIG.RETRY_DELAY * retries));
               } else {
                 throw error;
@@ -387,19 +566,6 @@ export const runContinuousScrapingJob = async (jobId = null) => {
             }
           }
           
-          // Check if store was rejected
-          if (processedStore && processedStore.rejected) {
-            skipped++;
-            const reason = processedStore.reason || 'unknown';
-            if (rejectionStats.hasOwnProperty(reason)) {
-              rejectionStats[reason]++;
-            } else {
-              rejectionStats.error++;
-            }
-            return { status: 'skipped', store: storeData.url, reason };
-          }
-          
-          // Check if store is valid and save it
           if (processedStore && processedStore.isShopify === true) {
             const saveResult = await saveStore(processedStore);
             const savedStore = saveResult.store;
@@ -423,8 +589,7 @@ export const runContinuousScrapingJob = async (jobId = null) => {
             return { status: 'saved', store: savedStore, isNew };
           } else {
             skipped++;
-            rejectionStats.error++;
-            return { status: 'skipped', store: storeData.url, reason: 'invalid_store' };
+            return { status: 'skipped', store: storeData.url };
           }
         } catch (error) {
           errors++;
@@ -469,30 +634,13 @@ export const runContinuousScrapingJob = async (jobId = null) => {
     console.log(`   Average per job: ${scrapingStats.averageStoresPerJob} stores`);
     console.log(`   Jobs completed: ${scrapingStats.successfulJobs}/${scrapingStats.totalJobs}`);
     
-    // Display rejection statistics
-    const totalRejected = Object.values(rejectionStats).reduce((sum, count) => sum + count, 0);
-    if (totalRejected > 0) {
-      console.log(`\n📊 Rejection Statistics:`);
-      console.log(`   ❌ Not Shopify stores: ${rejectionStats.not_shopify}`);
-      console.log(`   🔒 Password protected: ${rejectionStats.password_protected}`);
-      console.log(`   ⚠️  Inactive stores: ${rejectionStats.inactive}`);
-      console.log(`   📦 Zero products: ${rejectionStats.zero_products}`);
-      console.log(`   ⚠️  Processing errors: ${rejectionStats.error}`);
-    }
-    
     if (saved === 0 && uniqueStores.length > 0) {
       console.log(`\n⚠️  WARNING: Found ${uniqueStores.length} URLs but none were saved!`);
-      console.log(`   Breakdown:`);
-      console.log(`   - Not confirmed Shopify stores: ${rejectionStats.not_shopify} (${Math.round(rejectionStats.not_shopify / uniqueStores.length * 100)}%)`);
-      console.log(`   - Password protected: ${rejectionStats.password_protected} (${Math.round(rejectionStats.password_protected / uniqueStores.length * 100)}%)`);
-      console.log(`   - Inactive stores: ${rejectionStats.inactive} (${Math.round(rejectionStats.inactive / uniqueStores.length * 100)}%)`);
-      console.log(`   - Zero products: ${rejectionStats.zero_products} (${Math.round(rejectionStats.zero_products / uniqueStores.length * 100)}%)`);
-      console.log(`   - Processing errors: ${rejectionStats.error} (${Math.round(rejectionStats.error / uniqueStores.length * 100)}%)`);
-      console.log(`\n   💡 TIP: Most stores are likely being rejected because:`);
-      console.log(`   - They're not actual Shopify stores (most common)`);
-      console.log(`   - They have password protection enabled`);
-      console.log(`   - They're inactive/closed stores`);
-      console.log(`   - They have zero products listed`);
+      console.log(`   Common reasons:`);
+      console.log(`   - Not confirmed Shopify stores`);
+      console.log(`   - Password protected`);
+      console.log(`   - Inactive stores`);
+      console.log(`   - Missing name and product count`);
     }
     
     console.log(`\n🔄 Next automatic scrape will run in ${SCRAPING_CONFIG.AUTO_SCRAPE_INTERVAL} minutes\n`);
@@ -525,7 +673,6 @@ export const runContinuousScrapingJob = async (jobId = null) => {
   } finally {
     isScraping = false;
     currentJobId = null;
-    jobStartTime = null; // Clear job start time when done
   }
 };
 

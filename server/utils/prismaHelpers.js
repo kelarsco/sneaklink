@@ -6,6 +6,7 @@
  */
 
 import { getPrisma } from '../config/postgres.js';
+import { buildVisibilityFilter } from './visibilityRules.js';
 
 /**
  * Normalize URL to root homepage only (remove all subpaths)
@@ -51,56 +52,149 @@ export const normalizeUrl = (url) => {
 };
 
 /**
- * Convert MongoDB filter to Prisma where clause
+ * Build backward-compatible filter that works with both old and new schema fields
+ * This ensures stores are filtered correctly regardless of whether they use:
+ * - Old fields: isShopify, isActive, businessModel
+ * - New fields: shopifyStatus, shopifyConfidence, primaryBusinessModel, healthStatus
  */
-export const convertMongoFilterToPrisma = (mongoFilter) => {
+export const buildBackwardCompatibleFilter = (filter = {}) => {
   const where = {};
+  const andConditions = [];
   
-  // Direct field mappings
-  if (mongoFilter.isActive !== undefined) {
-    where.isActive = mongoFilter.isActive;
-  }
-  
-  if (mongoFilter.isShopify !== undefined) {
-    where.isShopify = mongoFilter.isShopify;
-  }
-  
-  if (mongoFilter.country) {
-    if (mongoFilter.country.$in) {
-      where.country = { in: mongoFilter.country.$in };
-    } else {
-      where.country = mongoFilter.country;
+  // Shopify filter: Prefer shopifyStatus, fallback to isShopify for backward compatibility
+  if (filter.isShopify !== undefined || filter.shopifyStatus !== undefined) {
+    if (filter.isShopify === true) {
+      // Show confirmed/probable Shopify stores OR legacy stores with isShopify=true (including null shopifyStatus)
+      andConditions.push({
+        OR: [
+          { shopifyStatus: { in: ['confirmed', 'probable'] } },
+          { isShopify: true, shopifyStatus: null }, // Legacy stores without shopifyStatus
+        ],
+      });
+    } else if (filter.isShopify === false) {
+      // Show unlikely/unverified stores OR legacy stores with isShopify=false
+      andConditions.push({
+        OR: [
+          { shopifyStatus: { in: ['unlikely', 'unverified'] } },
+          { isShopify: false, shopifyStatus: null }, // Legacy stores without shopifyStatus
+        ],
+      });
+    } else if (filter.shopifyStatus) {
+      // If shopifyStatus is explicitly set, use it directly
+      if (Array.isArray(filter.shopifyStatus)) {
+        andConditions.push({ shopifyStatus: { in: filter.shopifyStatus } });
+      } else {
+        andConditions.push({ shopifyStatus: filter.shopifyStatus });
+      }
     }
   }
   
-  if (mongoFilter.tags) {
-    if (mongoFilter.tags.$in) {
-      where.tags = { hasSome: mongoFilter.tags.$in };
-    } else if (mongoFilter.tags.$all) {
-      where.tags = { hasEvery: mongoFilter.tags.$all };
+  // Active filter: Use isActive AND healthStatus (backward compatibility)
+  if (filter.isActive !== undefined) {
+    if (filter.isActive === true) {
+      // Show active stores that are not marked as inactive
+      andConditions.push({ isActive: true });
+      // Exclude stores marked as possibly_inactive (allow null for legacy/discovery-phase stores)
+      andConditions.push({
+        OR: [
+          { healthStatus: { not: 'possibly_inactive' } },
+          { healthStatus: null }, // Discovery phase or legacy stores
+        ],
+      });
+    } else {
+      andConditions.push({ isActive: false });
     }
   }
   
-  if (mongoFilter.businessModel) {
-    if (mongoFilter.businessModel.$in) {
-      where.businessModel = { in: mongoFilter.businessModel.$in };
+  // Country filter
+  if (filter.country) {
+    if (filter.country.$in) {
+      andConditions.push({ country: { in: filter.country.$in } });
+    } else if (Array.isArray(filter.country)) {
+      andConditions.push({ country: { in: filter.country } });
     } else {
-      where.businessModel = mongoFilter.businessModel;
+      andConditions.push({ country: filter.country });
+    }
+  }
+  
+  // Tags filter
+  if (filter.tags) {
+    if (filter.tags.$in) {
+      andConditions.push({ tags: { hasSome: filter.tags.$in } });
+    } else if (filter.tags.$all) {
+      andConditions.push({ tags: { hasEvery: filter.tags.$all } });
+    } else if (Array.isArray(filter.tags)) {
+      andConditions.push({ tags: { hasSome: filter.tags } });
+    }
+  }
+  
+  // Theme filter
+  if (filter.theme) {
+    if (filter.theme.$in) {
+      andConditions.push({ theme: { in: filter.theme.$in } });
+    } else if (Array.isArray(filter.theme)) {
+      andConditions.push({ theme: { in: filter.theme } });
+    } else {
+      andConditions.push({ theme: filter.theme });
+    }
+  }
+  
+  // Business model filter: Support both old (businessModel) and new (primaryBusinessModel) fields
+  if (filter.businessModel !== undefined || filter.primaryBusinessModel !== undefined) {
+    const businessModelFilter = filter.primaryBusinessModel || filter.businessModel;
+    if (businessModelFilter) {
+      if (Array.isArray(businessModelFilter)) {
+        andConditions.push({
+          OR: [
+            { primaryBusinessModel: { in: businessModelFilter } },
+            { businessModel: { in: businessModelFilter } },
+          ],
+        });
+      } else if (typeof businessModelFilter === 'object' && businessModelFilter.$in) {
+        andConditions.push({
+          OR: [
+            { primaryBusinessModel: { in: businessModelFilter.$in } },
+            { businessModel: { in: businessModelFilter.$in } },
+          ],
+        });
+      } else {
+        andConditions.push({
+          OR: [
+            { primaryBusinessModel: businessModelFilter },
+            { businessModel: businessModelFilter },
+          ],
+        });
+      }
     }
   }
   
   // Date range filters
-  if (mongoFilter.dateAdded) {
-    where.dateAdded = {};
-    if (mongoFilter.dateAdded.$gte) {
-      where.dateAdded.gte = mongoFilter.dateAdded.$gte;
+  if (filter.dateAdded) {
+    const dateFilter = {};
+    if (filter.dateAdded.$gte || filter.dateAdded.gte) {
+      dateFilter.gte = filter.dateAdded.$gte || filter.dateAdded.gte;
     }
-    if (mongoFilter.dateAdded.$lte) {
-      where.dateAdded.lte = mongoFilter.dateAdded.$lte;
+    if (filter.dateAdded.$lte || filter.dateAdded.lte) {
+      dateFilter.lte = filter.dateAdded.$lte || filter.dateAdded.lte;
+    }
+    if (Object.keys(dateFilter).length > 0) {
+      andConditions.push({ dateAdded: dateFilter });
     }
   }
   
+  // Return where clause - if we have AND conditions, use them; otherwise return empty object
+  if (andConditions.length > 0) {
+    return { AND: andConditions };
+  }
+  
   return where;
+};
+
+/**
+ * Convert MongoDB filter to Prisma where clause (legacy - uses backward-compatible filter)
+ */
+export const convertMongoFilterToPrisma = (mongoFilter) => {
+  return buildBackwardCompatibleFilter(mongoFilter);
 };
 
 /**

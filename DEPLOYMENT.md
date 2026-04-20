@@ -1,336 +1,145 @@
-# Deployment Guide
+# SneakLink – Deploy to GitHub, Vercel, Railway & Neon
 
-## Overview
+## 1. Push to GitHub
 
-When you deploy your project to hosting, the backend will continue to work, but you'll need to configure several things properly. This guide covers deployment for both frontend and backend.
-
-## Backend Deployment
-
-### 1. Environment Variables
-
-Your hosting provider needs access to environment variables. Set these in your hosting dashboard:
-
-**Required:**
-```env
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/sneaklink?retryWrites=true&w=majority
-PORT=3000
-FRONTEND_URL=https://your-frontend-domain.com
-```
-
-**Optional (for enhanced features):**
-```env
-SCRAPING_API_KEY=your_scraping_api_key
-FACEBOOK_ACCESS_TOKEN=your_facebook_token
-```
-
-### 2. MongoDB Atlas Configuration
-
-1. **IP Whitelist**: Add your hosting server's IP address to MongoDB Atlas IP whitelist
-   - Or use `0.0.0.0/0` to allow all IPs (less secure, but easier for dynamic IPs)
-
-2. **Database User**: Ensure your MongoDB user has read/write permissions
-
-### 3. CORS Configuration
-
-Update `server/server.js` to allow your frontend domain:
-
-```javascript
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'https://your-frontend-domain.com',
-  credentials: true,
-}));
-```
-
-### 4. Scraping Jobs
-
-The automatic scraping will continue to work:
-- ✅ Initial scrape runs 5 seconds after server starts
-- ✅ Scheduled jobs run every 6 hours
-- ✅ Quick updates every 30 minutes
-- ✅ All scrapers continue to function
-
-**Note**: Make sure your hosting provider allows:
-- Long-running processes
-- Cron jobs (or use external cron service)
-- Outbound HTTP requests (for scraping)
-
-## Hosting Options
-
-### Option 1: VPS/Cloud Server (Recommended)
-
-**Providers**: DigitalOcean, AWS EC2, Google Cloud, Azure, Linode
-
-**Pros:**
-- Full control
-- Cron jobs work natively
-- Can run both frontend and backend
-- No restrictions on scraping
-
-**Setup:**
 ```bash
-# Install Node.js
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt-get install -y nodejs
+# Initialize git if needed
+git init
 
-# Install PM2 for process management
-sudo npm install -g pm2
+# Add remote (use your repo)
+git remote add origin https://github.com/kelarsco/sneaklink.git
 
-# Clone your repo
-git clone your-repo-url
-cd sneaklink
+# Ensure .env is never committed (see .gitignore)
+# Add and commit
+git add .
+git commit -m "Prepare for deployment: Vercel + Railway + Neon"
 
-# Install dependencies
-cd server && npm install
-cd ../frontend && npm install
+# Push (replace main with your default branch if different)
+git branch -M main
+git push -u origin main
+```
 
-# Build frontend
-npm run build
+**Important:** Do **not** commit `server/.env` or any file containing real secrets. The repo `.gitignore` already excludes `.env` and `server/.env`.
 
-# Set environment variables
-nano server/.env  # Edit with your values
+---
 
-# Start backend with PM2
+## 2. Database: Neon PostgreSQL
+
+1. Create a project at [neon.tech](https://neon.tech) and get your connection string.
+2. Use the **pooled** connection string (e.g. `-pooler` in the host) for serverless/Railway.
+
+**Set in Railway (backend):**
+
+- Variable: `DATABASE_URL`
+- Value: your full Neon connection string (from Neon dashboard → Connection string → **Pooled**).
+- Example format:  
+  `postgresql://USER:PASSWORD@ep-xxx-pooler.region.aws.neon.tech/sneaklink?sslmode=require`  
+  (Neon often adds `&channel_binding=require`; that’s fine.)
+- **Do not commit this value**; set it only in Railway (and locally in `server/.env` if you use Neon for dev).
+
+**Sync existing database and data to Neon (one-time):**
+
+If your data is in another Postgres (e.g. local), sync schema + data to Neon:
+
+```bash
 cd server
-pm2 start server.js --name sneaklink-backend
-pm2 save
-pm2 startup  # Follow instructions to enable auto-start
-
-# Serve frontend (using PM2 or nginx)
-pm2 serve ../dist 8080 --name sneaklink-frontend --spa
+npm install
+# In .env set:
+#   SOURCE_DATABASE_URL=postgresql://... (current DB with data)
+#   TARGET_DATABASE_URL=postgresql://...@ep-xxx.neon.tech/sneaklink?sslmode=require
+npm run db:sync-neon
 ```
 
-### Option 2: Platform as a Service (PaaS)
+This applies migrations to Neon and copies all rows from source to Neon.
 
-**Providers**: Heroku, Railway, Render, Fly.io, Vercel (frontend only)
+**Apply schema only (no data copy):**
 
-#### Heroku
-
-**Backend:**
 ```bash
-# Install Heroku CLI
-heroku login
-heroku create sneaklink-backend
-
-# Set environment variables
-heroku config:set MONGODB_URI=your_mongodb_uri
-heroku config:set FRONTEND_URL=https://your-frontend.com
-heroku config:set SCRAPING_API_KEY=your_key
-heroku config:set FACEBOOK_ACCESS_TOKEN=your_token
-
-# Deploy
-git push heroku main
+cd server
+# Set DATABASE_URL to your Neon URL in .env
+npx prisma migrate deploy
+npx prisma generate
 ```
 
-**Frontend:**
-- Deploy to Vercel, Netlify, or Cloudflare Pages
-- Update `VITE_API_URL` in frontend `.env` to point to your backend
+---
 
-#### Railway
+## 3. Frontend: Vercel
 
-1. Connect your GitHub repo
-2. Add environment variables in dashboard
-3. Deploy automatically on push
+1. Go to [vercel.com](https://vercel.com) → **Add New** → **Project**.
+2. Import **kelarsco/sneaklink** from GitHub.
+3. **Root Directory:** leave as `.` (repo root).
+4. **Framework Preset:** Vite (auto-detected).
+5. **Build Command:** `npm run build`
+6. **Output Directory:** `dist`
+7. **Environment variables** (Vercel → Project → Settings → Environment Variables):
 
-#### Render
+| Name              | Value                    | Notes                    |
+|-------------------|--------------------------|--------------------------|
+| `VITE_API_URL`    | `https://YOUR-RAILWAY-URL/api` | Your Railway backend URL + `/api` |
+| `VITE_GOOGLE_CLIENT_ID` | Your Google OAuth client ID | Same as in backend        |
+| (any other `VITE_*`) | As in your app           | Only `VITE_*` are exposed to the client |
 
-1. Create new Web Service
-2. Connect GitHub repo
-3. Set build command: `cd server && npm install`
-4. Set start command: `node server.js`
-5. Add environment variables
+8. Deploy. The app will be at `https://your-project.vercel.app`.
 
-### Option 3: Serverless (Limited)
+**Google OAuth:** In Google Cloud Console, add your Vercel URL to **Authorized JavaScript origins** and add `https://your-domain.vercel.app/auth/google/callback` (or your actual callback path) to **Authorized redirect URIs**.
 
-**Note**: Serverless functions have limitations:
-- ❌ Cron jobs may not work (use external cron service)
-- ❌ Long-running scraping jobs may timeout
-- ✅ Good for API endpoints
-- ✅ Auto-scaling
+---
 
-**Providers**: AWS Lambda, Vercel Functions, Cloudflare Workers
+## 4. Backend: Railway
 
-**For serverless, you'd need to:**
-- Use external cron service (cron-job.org, EasyCron) to trigger scraping
-- Split scraping into smaller chunks
-- Use queue system (Redis, AWS SQS)
+1. Go to [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo**.
+2. Select **kelarsco/sneaklink**.
+3. **Root Directory:** set to **`server`** (so Railway uses `server/package.json` and `server/server.js`).
+4. **Build:** Railway will run `npm install` in `server/`.
+5. **Start:** Railway will run `npm start` → `node server.js` (see `server/railway.toml`).
+6. **Environment variables** (Railway → your service → Variables):
 
-## Frontend Deployment
+Set at least:
 
-### 1. Update API URL
+| Name             | Value |
+|------------------|--------|
+| `DATABASE_URL`   | Your **Neon** connection string (pooled, with `?sslmode=require`) |
+| `PORT`           | Leave empty; Railway sets it automatically |
+| `FRONTEND_URL`   | Your Vercel URL, e.g. `https://your-app.vercel.app` |
+| `NODE_ENV`       | `production` |
+| `JWT_SECRET`     | Strong random string (e.g. `openssl rand -hex 64`) |
+| `GOOGLE_CLIENT_ID` | Same as frontend |
+| `GOOGLE_CLIENT_SECRET` | From Google Cloud Console |
+| `GOOGLE_REDIRECT_URI` | `https://your-vercel-url.vercel.app/auth/google/callback` |
+| (Paystack, etc.) | Same as in `server/env.template` |
 
-Create `.env.production` in frontend:
+7. Deploy. Railway will assign a URL like `https://xxx.up.railway.app`.
+8. **After first deploy:** Copy that URL and set **Vercel** env var `VITE_API_URL` to `https://xxx.up.railway.app/api`.
+
+**CORS:** The server uses `FRONTEND_URL` for allowed origins; keeping `FRONTEND_URL` in sync with your Vercel URL avoids CORS issues.
+
+---
+
+## 5. Post-deploy checklist
+
+- [ ] **Neon:** `DATABASE_URL` in Railway is the Neon pooled URL; migrations applied if needed.
+- [ ] **Vercel:** `VITE_API_URL` points to Railway backend + `/api`.
+- [ ] **Railway:** `FRONTEND_URL` is your Vercel URL; Google OAuth redirect URI matches.
+- [ ] **Google OAuth:** Authorized origins and redirect URIs include production URLs (no trailing slash).
+- [ ] **Paystack / other APIs:** Live keys and webhooks use production URLs where required.
+
+---
+
+## 6. Local development with Neon
+
+In `server/.env`:
+
 ```env
-VITE_API_URL=https://your-backend-domain.com/api
+DATABASE_URL=postgresql://neondb_owner:YOUR_PASSWORD@ep-delicate-hill-aie4r7pm-pooler.us-east-1.aws.neon.tech/sneaklink?sslmode=require
 ```
 
-### 2. Build Frontend
+Then:
 
 ```bash
-cd frontend
-npm run build
+cd server
+npx prisma generate
+npx prisma db push   # or migrate deploy
+npm run dev
 ```
 
-### 3. Deploy Options
-
-**Static Hosting:**
-- Vercel (recommended)
-- Netlify
-- Cloudflare Pages
-- GitHub Pages
-
-**Steps for Vercel:**
-```bash
-npm install -g vercel
-vercel
-# Follow prompts
-```
-
-## Configuration Checklist
-
-### Backend Checklist
-
-- [ ] MongoDB Atlas IP whitelist configured
-- [ ] Environment variables set in hosting dashboard
-- [ ] CORS allows frontend domain
-- [ ] Port configured (or use hosting default)
-- [ ] Process manager (PM2) installed (for VPS)
-- [ ] Auto-restart on crash enabled
-- [ ] Logs accessible
-
-### Frontend Checklist
-
-- [ ] `VITE_API_URL` points to backend
-- [ ] Build completed successfully
-- [ ] Static files served correctly
-- [ ] Environment variables set
-
-## Monitoring & Maintenance
-
-### 1. Health Checks
-
-Your backend has a health endpoint:
-```
-GET https://your-backend.com/health
-```
-
-Set up monitoring to ping this endpoint.
-
-### 2. Logs
-
-**PM2 (VPS):**
-```bash
-pm2 logs sneaklink-backend
-pm2 monit
-```
-
-**Heroku:**
-```bash
-heroku logs --tail
-```
-
-**Railway/Render:**
-- Check logs in dashboard
-
-### 3. Database Monitoring
-
-- Monitor MongoDB Atlas dashboard
-- Set up alerts for connection issues
-- Monitor storage usage
-
-### 4. Scraping Status
-
-Check scraping status:
-```
-GET https://your-backend.com/api/stores/scrape/status
-```
-
-## Troubleshooting Deployment
-
-### Issue: Backend not connecting to MongoDB
-
-**Solution:**
-- Check IP whitelist in MongoDB Atlas
-- Verify `MONGODB_URI` is correct
-- Check MongoDB user permissions
-
-### Issue: CORS errors
-
-**Solution:**
-- Update `FRONTEND_URL` in backend `.env`
-- Verify CORS middleware allows your frontend domain
-
-### Issue: Scraping not working
-
-**Solution:**
-- Check if hosting allows outbound HTTP requests
-- Verify API keys are set correctly
-- Check server logs for errors
-- Ensure cron jobs are enabled (for VPS)
-
-### Issue: Timeout errors
-
-**Solution:**
-- Increase timeout limits in hosting settings
-- Break scraping into smaller batches
-- Use queue system for long-running tasks
-
-## Recommended Architecture
-
-```
-┌─────────────────┐
-│   Frontend      │  (Vercel/Netlify)
-│   (React/Vite)  │
-└────────┬────────┘
-         │ HTTPS
-         │
-┌────────▼────────┐
-│   Backend API   │  (Railway/Render/Heroku)
-│   (Express)     │
-└────────┬────────┘
-         │
-┌────────▼────────┐
-│  MongoDB Atlas  │  (Cloud Database)
-│   (Database)    │
-└─────────────────┘
-```
-
-## Cost Estimates
-
-**Free Tier Options:**
-- Railway: $5/month (after free trial)
-- Render: Free tier available (with limitations)
-- Vercel: Free tier for frontend
-- MongoDB Atlas: Free tier (512MB)
-
-**VPS Options:**
-- DigitalOcean: $6/month (basic droplet)
-- AWS EC2: Pay as you go
-- Google Cloud: Free tier available
-
-## Security Considerations
-
-1. **Environment Variables**: Never commit `.env` files
-2. **API Keys**: Rotate keys regularly
-3. **CORS**: Only allow your frontend domain
-4. **Rate Limiting**: Add rate limiting to API endpoints
-5. **HTTPS**: Always use HTTPS in production
-6. **MongoDB**: Use strong passwords, enable IP whitelist
-
-## Next Steps
-
-1. Choose your hosting provider
-2. Set up MongoDB Atlas (if not done)
-3. Configure environment variables
-4. Deploy backend
-5. Deploy frontend
-6. Test all endpoints
-7. Monitor logs and performance
-
-## Support
-
-If you encounter issues:
-1. Check server logs
-2. Verify environment variables
-3. Test endpoints with curl/Postman
-4. Check MongoDB Atlas connection
-5. Review this deployment guide
+Never commit the real Neon password; use `.env` only locally and in Railway Variables.

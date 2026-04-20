@@ -1,6 +1,7 @@
 import { ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import dashboardPreview from "@/assets/dashboard-preview.png";
+import dashboardPreview from "@/assets/images/dashboard-preview.png";
+import dashboardPreviewt from "@/assets/images/dashboard-preview-wt.png";
 import { useNavigate } from "react-router-dom";
 
 const Hero = () => {
@@ -64,11 +65,18 @@ const Hero = () => {
         {/* Dashboard Preview */}
         <div className="relative max-w-6xl mx-auto opacity-0 animate-fade-up animation-delay-600 mb-20">
           <div className="glass-panel p-2 md:p-4 glow-effect animate-glow-pulse">
-            <img
-              src={dashboardPreview}
-              alt="SneakLink Dashboard - Discover E-Commerce Stores"
-              className="w-full rounded-xl shadow-2xl"
-            />
+        
+             <img 
+       src={dashboardPreview}
+        alt="SneakLink Logo" 
+                className="w-full rounded-xl shadow-2xl hidden dark:block"
+
+      />
+      <img 
+        src={dashboardPreviewt}
+        alt="SneakLink Logo" className="w-full rounded-xl dark:hidden"
+
+      />
           </div>
         </div>
         

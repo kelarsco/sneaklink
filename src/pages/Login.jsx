@@ -7,6 +7,7 @@ import { verifyGoogleToken } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { getDeviceId } from "@/utils/deviceId";
+import { FloatingButtons } from "@/components/FloatingButtons";
 
 const Login = () => {
   // ALL HOOKS MUST BE CALLED FIRST - before any conditional returns
@@ -407,10 +408,16 @@ const Login = () => {
       
       {/* Logo */}
       <Link to="/" className="absolute top-8 left-8 flex items-center gap-2 z-10">
-        <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-          <span className="text-primary-foreground font-light text-sm">SL</span>
-        </div>
-        <span className="text-xl font-light text-foreground">SneakLink</span>
+       <img 
+        src="/images/logo-black-text.png" 
+        alt="SneakLink Logo" 
+        className="h-8 dark:hidden"
+      />
+      <img 
+        src="/images/logo-white-text.png" 
+        alt="SneakLink Logo" 
+        className="h-8 hidden dark:block"
+      />
       </Link>
 
       {/* Login Card */}
@@ -503,6 +510,7 @@ const Login = () => {
           .
         </p>
       </div>
+      <FloatingButtons />
     </div>
   );
 };

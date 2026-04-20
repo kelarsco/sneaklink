@@ -4,6 +4,14 @@
 
 **URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
 
+## Deploy (Vercel + Railway + Neon)
+
+- **Frontend:** Vercel (this repo, Vite build)
+- **Backend:** Railway (use **Root Directory** `server`)
+- **Database:** Neon PostgreSQL (set `DATABASE_URL` in Railway)
+
+See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for step-by-step setup and env vars.
+
 ## How can I edit this code?
 
 There are several ways of editing your application.

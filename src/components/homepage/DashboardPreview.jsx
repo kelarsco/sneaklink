@@ -1,5 +1,8 @@
-import { Filter, Download, Globe } from "lucide-react";
-import dashboardPreview from "@/assets/dashboard-preview.png";
+import { useState, useRef, useEffect } from "react";
+import { Filter, Download, Globe, X, Play, Pause, Volume2, VolumeX, Maximize2, Minimize2 } from "lucide-react";
+import dashboardPreviewDark from "@/assets/images/dashboard-preview.png";
+import dashboardPreviewLight from "@/assets/images/dashboard-preview-wt.png";
+
 
 const features = [
   { icon: Filter, label: "Advanced Filters", description: "Filter by country, theme, date, and tags" },
@@ -8,6 +11,74 @@ const features = [
 ];
 
 const DashboardPreview = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const videoRef = useRef(null);
+
+  const togglePlayPause = () => {
+    if (videoRef.current) {
+      if (videoRef.current.paused) {
+        videoRef.current.play();
+        setIsPlaying(true);
+      } else {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      }
+    }
+  };
+
+  const toggleMute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !videoRef.current.muted;
+      setIsMuted(videoRef.current.muted);
+    }
+  };
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      videoRef.current?.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  };
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!isOpen) return;
+      
+      switch(e.key.toLowerCase()) {
+        case ' ':
+          e.preventDefault();
+          togglePlayPause();
+          break;
+        case 'm':
+          toggleMute();
+          break;
+        case 'f':
+          toggleFullscreen();
+          break;
+        case 'escape':
+          if (document.fullscreenElement) {
+            document.exitFullscreen();
+            setIsFullscreen(false);
+          } else if (isOpen) {
+            setIsOpen(false);
+          }
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
   return (
     <section id="dashboard" className="py-24 relative">
       {/* Background */}
@@ -46,21 +117,138 @@ const DashboardPreview = () => {
             })}
           </div>
 
-          {/* Dashboard Image */}
+          {/* Video Preview */}
           <div className="order-1 lg:order-2">
-            <div className="glass-panel p-3 glow-effect">
-              <img
-                src={dashboardPreview}
-                alt="SneakLink Dashboard Interface"
-                className="w-full rounded-xl"
-              />
-            </div>
+<div 
+  className="glass-panel p-3 glow-effect cursor-pointer group relative overflow-hidden rounded-xl"
+  onClick={() => setIsOpen(true)}
+>
+  {/* Dark Mode Video Thumbnail */}
+  <div className="hidden dark:block">
+    <video
+      ref={videoRef}
+      className="w-full rounded-lg"
+      muted
+      loop
+      playsInline
+      poster={dashboardPreviewDark}
+    >
+      <source src="/videos/dashboard-preview-dark.mp4" type="video/mp4" />
+    </video>
+  </div>
+  
+  {/* Light Mode Video Thumbnail */}
+  <div className="dark:hidden">
+    <video
+      ref={videoRef}
+      className="w-full rounded-lg"
+      muted
+      loop
+      playsInline
+      poster={dashboardPreviewLight}
+    >
+      <source src="/videos/dashboard-preview-light.mp4" type="video/mp4" />
+    </video>
+  </div>
+  
+  {/* Play Button Overlay */}
+  <div className="absolute inset-0 flex items-center justify-center bg-black/10 opacity-100 transition-opacity">
+    <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center transform group-hover:scale-110 transition-transform">
+      <Play className="w-8 h-8 text-primary" />
+    </div>
+  </div>
+</div>
+
+            
           </div>
         </div>
       </div>
+
+      {/* Video Modal */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsOpen(false);
+              setIsPlaying(false);
+            }
+          }}
+        >
+          <button
+            onClick={() => {
+              setIsOpen(false);
+              setIsPlaying(false);
+            }}
+            className="absolute top-6 right-6 text-white hover:text-primary transition-colors z-10"
+            aria-label="Close video"
+          >
+            <X className="w-8 h-8" />
+          </button>
+          
+          <div className="relative w-full max-w-6xl">
+            <video
+              ref={videoRef}
+              className="w-full rounded-lg"
+              autoPlay
+              controls={false}
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePlayPause();
+              }}
+            >
+              <source 
+                src={document.documentElement.classList.contains('dark') 
+                  ? "/videos/dashboard-preview-dark.mp4" 
+                  : "/videos/dashboard-preview-light.mp4"
+                } 
+                type="video/mp4" 
+              />
+              Your browser does not support the video tag.
+            </video>
+            
+            {/* Custom Controls */}
+            <div 
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 rounded-full px-4 py-2 flex items-center gap-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button 
+                onClick={togglePlayPause}
+                className="text-white hover:text-primary transition-colors"
+                aria-label={isPlaying ? "Pause" : "Play"}
+              >
+                {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+              </button>
+              
+              <div className="h-6 w-px bg-white/30" />
+              
+              <button 
+                onClick={toggleMute}
+                className="text-white hover:text-primary transition-colors"
+                aria-label={isMuted ? "Unmute" : "Mute"}
+              >
+                {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+              </button>
+              
+              <div className="h-6 w-px bg-white/30" />
+              
+              <button 
+                onClick={toggleFullscreen}
+                className="text-white hover:text-primary transition-colors"
+                aria-label={isFullscreen ? "Minimize" : "Maximize"}
+              >
+                {isFullscreen ? (
+                  <Minimize2 className="w-5 h-5" />
+                ) : (
+                  <Maximize2 className="w-5 h-5" />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };
 
 export default DashboardPreview;
-

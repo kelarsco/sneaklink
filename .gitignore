@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+bun.lockb
+
+# Environment (never commit secrets)
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+server/.env
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing / coverage
+coverage/
+.nyc_output/
+*.pid
+*.seed
+
+# Misc
+.cache/
+.temp/
+*.pid.lock
+
+# Prisma (optional: keep migrations, ignore generated)
+# server/prisma/migrations are usually committed
+
+# Vercel
+.vercel
+
+# Railway
+.railway

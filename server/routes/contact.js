@@ -146,20 +146,26 @@ router.post('/', writeLimiter, async (req, res) => {
         }
       }
 
-      // Get user's plan if userId exists
+      // Get user's plan and account status if userId exists
       let userPlan = 'free';
+      let accountStatus = null;
       if (finalUserId) {
         try {
           const user = await prisma.user.findUnique({
             where: { id: finalUserId },
-            select: { subscriptionPlan: true },
+            select: { subscriptionPlan: true, accountStatus: true },
           });
-          if (user && user.subscriptionPlan) {
-            userPlan = user.subscriptionPlan;
-            // User plan determined - log removed to prevent terminal clutter
+          if (user) {
+            if (user.subscriptionPlan) {
+              userPlan = user.subscriptionPlan;
+            }
+            // Only set accountStatus if user is suspended or deactivated
+            if (user.accountStatus === 'suspended' || user.accountStatus === 'deactivated') {
+              accountStatus = user.accountStatus;
+            }
           }
         } catch (planError) {
-          console.log('⚠️ Could not fetch user plan, defaulting to free:', planError.message);
+          console.log('⚠️ Could not fetch user plan/status, defaulting to free:', planError.message);
         }
       }
 
@@ -220,6 +226,11 @@ router.post('/', writeLimiter, async (req, res) => {
           ticketData.userId = finalUserId;
         }
 
+        // Add account status if user is suspended or deactivated
+        if (accountStatus) {
+          ticketData.accountStatus = accountStatus;
+        }
+
         // Create ticket using Prisma
         const ticket = await prisma.supportTicket.create({
           data: ticketData,
@@ -240,19 +251,7 @@ router.post('/', writeLimiter, async (req, res) => {
           // Don't fail ticket creation if email fails
         }
 
-        // Process ticket for suspended user automation (if user is suspended)
-        if (finalUserId) {
-          try {
-            const { processSuspendedUserTicket } = await import('../services/suspendedUserAutomation.js');
-            // Process asynchronously - don't wait
-            processSuspendedUserTicket(ticket).catch(err => 
-              console.error('[Contact] Error processing suspended user ticket:', err)
-            );
-          } catch (automationError) {
-            console.error('[Contact] Error importing suspended user automation:', automationError);
-            // Don't fail ticket creation if automation fails
-          }
-        }
+        // Note: Suspended user automation removed - ticket creation continues normally
 
         // Note: Removed sendContactEmail call - only sending support ticket notification
 

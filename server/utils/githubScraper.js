@@ -2,7 +2,6 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { looksLikeShopifyStore } from './shopifyUrlValidator.js';
 import { getHTMLWithAPI } from './scrapingApi.js';
-import { normalizeUrlToRoot } from './urlNormalizer.js';
 
 /**
  * Scrape GitHub for Shopify store links
@@ -70,13 +69,12 @@ export const scrapeGitHub = async () => {
           for (const url of urls) {
             if (looksLikeShopifyStore(url)) {
               const cleanUrl = url.trim().replace(/[.,;!?]+$/, '');
-              // Normalize URL to root homepage only
-              const normalizedUrl = normalizeUrlToRoot(cleanUrl);
+              const normalizedUrl = cleanUrl.toLowerCase().replace(/\/$/, '');
               
-              if (normalizedUrl && !seenUrls.has(normalizedUrl.toLowerCase())) {
-                seenUrls.add(normalizedUrl.toLowerCase());
+              if (!seenUrls.has(normalizedUrl)) {
+                seenUrls.add(normalizedUrl);
                 stores.push({
-                  url: normalizedUrl,
+                  url: cleanUrl.split('?')[0].split('#')[0],
                   source: 'GitHub',
                 });
               }

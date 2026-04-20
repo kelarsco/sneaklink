@@ -1,7 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+
+// Logo paths from public directory
+const logoWhiteText = "/images/logo-white-text.png";
+const logoBlackText = "/images/logo-black-text.png";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -19,11 +23,24 @@ const Header = () => {
       <div className="container mx-auto px-6 py-4">
         <nav className="flex items-center justify-between">
           {/* Logo */}
-          <a href="#" className="flex items-center gap-2" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
-            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-normal text-sm">SL</span>
-            </div>
-            <span className="text-xl font-normal text-foreground">SneakLink</span>
+          <a 
+            href="#" 
+            className="flex items-center gap-2" 
+            onClick={(e) => { 
+              e.preventDefault(); 
+              window.scrollTo({ top: 0, behavior: 'smooth' }); 
+            }}
+          >
+            <img 
+              src={logoBlackText} 
+              alt="SneakLink Logo" 
+              className="h-10 dark:hidden"
+            />
+            <img 
+              src={logoWhiteText} 
+              alt="SneakLink Logo" 
+              className="h-10 hidden dark:block"
+            />
           </a>
 
           {/* Desktop Nav */}

@@ -1,103 +1,37 @@
+/**
+ * Simple HTML fetching utility
+ * Replaces the old complex scraping API wrapper
+ * Provides basic HTML fetching functionality
+ */
+
 import axios from 'axios';
-import * as cheerio from 'cheerio';
-import { normalizeUrlToRoot } from './urlNormalizer.js';
 
 /**
- * Scrape a URL using ScrapingAPI.com
+ * Get HTML content from a URL
+ * @param {string} url - URL to fetch
+ * @param {Object} options - Optional fetch options
+ * @returns {Promise<string>} - HTML content
  */
-export const scrapeWithAPI = async (url) => {
-  const apiKey = process.env.SCRAPING_API_KEY;
-  
-  if (!apiKey) {
-    console.log('ScrapingAPI key not configured, skipping API scraping');
-    return null;
-  }
-
+export const getHTMLWithAPI = async (url, options = {}) => {
   try {
-    const response = await axios.get('https://api.scrapingapi.com/v2/scrape', {
-      params: {
-        api_key: apiKey,
-        url: url,
-        render: 'false', // Don't render JavaScript (faster)
+    const response = await axios.get(url, {
+      timeout: options.timeout || 15000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        ...options.headers,
       },
-      timeout: 30000, // 30 second timeout
+      ...options,
     });
-
+    
     return response.data;
   } catch (error) {
-    console.error(`Error using ScrapingAPI for ${url}:`, error.message);
-    return null;
+    console.error(`Error fetching HTML from ${url}:`, error.message);
+    throw error;
   }
 };
 
 /**
- * Get HTML content using ScrapingAPI
+ * Scrape with API (alias for getHTMLWithAPI for backward compatibility)
  */
-export const getHTMLWithAPI = async (url) => {
-  const html = await scrapeWithAPI(url);
-  if (html && typeof html === 'string') {
-    return html;
-  }
-  return null;
-};
+export const scrapeWithAPI = getHTMLWithAPI;
 
-/**
- * Search for Shopify stores using ScrapingAPI
- * This can be used to scrape search engines or directories
- */
-export const searchShopifyStoresWithAPI = async (query) => {
-  const apiKey = process.env.SCRAPING_API_KEY;
-  
-  if (!apiKey) {
-    return [];
-  }
-
-  const stores = [];
-  
-  try {
-    // Example: Search Google for Shopify stores
-    const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-    
-    const html = await getHTMLWithAPI(searchUrl);
-    if (!html) {
-      return stores;
-    }
-
-    const $ = cheerio.load(html);
-    
-    // Extract URLs from search results
-    $('a[href]').each((i, elem) => {
-      const href = $(elem).attr('href');
-      if (href) {
-        // Extract actual URL from Google's redirect
-        const urlMatch = href.match(/\/url\?q=([^&]+)/);
-        if (urlMatch) {
-          const url = decodeURIComponent(urlMatch[1]);
-          if (url.includes('.myshopify.com') || url.includes('shopify.com/store/')) {
-            // Normalize URL to root homepage only
-            const normalizedUrl = normalizeUrlToRoot(url);
-            if (normalizedUrl) {
-              stores.push({
-                url: normalizedUrl,
-                source: 'Search Engine (ScrapingAPI)',
-              });
-            }
-          }
-        } else if (href.startsWith('http') && (href.includes('.myshopify.com') || href.includes('shopify.com/store/'))) {
-          // Normalize URL to root homepage only
-          const normalizedUrl = normalizeUrlToRoot(href);
-          if (normalizedUrl) {
-            stores.push({
-              url: normalizedUrl,
-              source: 'Search Engine (ScrapingAPI)',
-            });
-          }
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Error searching with ScrapingAPI:', error.message);
-  }
-
-  return stores;
-};
