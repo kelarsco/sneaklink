@@ -149,16 +149,16 @@ const AdminLogin = () => {
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl dark:block hidden" />
       <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-accent/10 rounded-full blur-3xl dark:block hidden" />
       
-      {/* Logo - standard SneakLink logo */}
+      {/* Logo */}
       <Link to="/" className="absolute top-8 left-8 flex items-center gap-2 z-10">
-        <img
-          src="/images/logo-black-text.png"
-          alt="SneakLink Logo"
+        <img 
+          src="/images/logo-black-text.png" 
+          alt="SneakLink Logo" 
           className="h-8 dark:hidden"
         />
-        <img
-          src="/images/logo-white-text.png"
-          alt="SneakLink Logo"
+        <img 
+          src="/images/logo-white-text.png" 
+          alt="SneakLink Logo" 
           className="h-8 hidden dark:block"
         />
       </Link>
@@ -191,9 +191,9 @@ const AdminLogin = () => {
 
             {/* Admin TOTP Login */}
             <TabsContent value="admin" className="space-y-6">
-              <p className="text-center mb-4 text-muted-foreground">
-                Enter your 6-digit code from Google Authenticator
-              </p>
+              <p style={{ color: '#9ca3af' }} className="text-center mb-4">
+              Enter your 6-digit code from Google Authenticator
+            </p>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <label htmlFor="totp-code" className="text-sm font-light text-foreground">
@@ -241,7 +241,7 @@ const AdminLogin = () => {
 
             {/* Staff Email Login */}
             <TabsContent value="staff" className="space-y-6">
-              <p className="text-center mb-4 text-muted-foreground">
+              <p style={{ color: '#9ca3af' }} className="text-center mb-4">
                 Enter your email to login (no password required)
               </p>
               <form onSubmit={handleStaffLogin} className="space-y-6">

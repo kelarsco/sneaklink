@@ -34,8 +34,9 @@ const PORT = process.env.PORT || 3000;
     console.log('✅ PostgreSQL connected');
   } catch (error) {
     console.error('\n❌ PostgreSQL connection failed!');
-    console.error('   Error:', error.message);
-    console.error('   Check DATABASE_URL in server/.env and run: npm run postgres:test');
+    console.error('   PostgreSQL is required for the application to work.');
+    console.error('   Please check your DATABASE_URL in .env file.');
+    console.error('   Run: npm run postgres:test');
     console.error('\n⚠️  Server will start but features may be limited.');
   }
 })();
@@ -46,10 +47,37 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"],
-      scriptSrc: ["'self'", "https://accounts.google.com", "https://js.paystack.co"],
+      // Allow Paystack scripts - must allow both base domain and relative paths
+      scriptSrc: [
+        "'self'", 
+        "https://accounts.google.com", 
+        "https://js.paystack.co",
+        "https://*.paystack.co",
+        "https://paystack.com"
+      ],
+      // scriptSrcElem for <script> elements (separate from scriptSrc)
+      scriptSrcElem: [
+        "'self'",
+        "https://accounts.google.com",
+        "https://js.paystack.co",
+        "https://*.paystack.co",
+        "https://paystack.com"
+      ],
       imgSrc: ["'self'", "data:", "https:", "https://accounts.google.com"],
-      connectSrc: ["'self'", "https://accounts.google.com", "https://oauth2.googleapis.com"],
-      frameSrc: ["'self'", "https://accounts.google.com"],
+      // Allow Paystack API connections
+      connectSrc: [
+        "'self'", 
+        "https://accounts.google.com", 
+        "https://oauth2.googleapis.com",
+        "https://api.paystack.co",
+        "https://*.paystack.co"
+      ],
+      frameSrc: [
+        "'self'", 
+        "https://accounts.google.com",
+        "https://*.paystack.co",
+        "https://paystack.com"
+      ],
     },
   },
   crossOriginEmbedderPolicy: false, // Allow embedding if needed
@@ -119,6 +147,12 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/visitors', visitorRoutes);
 
+// Log routes registration
+console.log('✅ Routes registered:');
+console.log('   - POST /api/subscriptions/initialize');
+console.log('   - POST /api/subscriptions/verify');
+console.log('   - GET  /api/subscriptions/test (health check)');
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -148,51 +182,6 @@ app.use((err, req, res, next) => {
 });
 
 // Store Processing Pipeline removed
-
-// Shopify Store Scraping Scheduler (every 20 minutes)
-import { runShopifyStoreScraping } from './services/shopifyStoreScraper.js';
-
-let isScraping = false;
-
-// Schedule scraping job every 20 minutes
-cron.schedule('*/20 * * * *', async () => {
-  if (isScraping) {
-    console.log('⏸️  Scraping job already running, skipping...');
-    return;
-  }
-
-  isScraping = true;
-  console.log('\n⏰ Scheduled scraping job triggered (20min interval)');
-  
-  try {
-    await runShopifyStoreScraping();
-  } catch (error) {
-    console.error('❌ Error in scheduled scraping job:', error.message);
-  } finally {
-    isScraping = false;
-  }
-});
-
-// Run initial scrape 30 seconds after server starts
-setTimeout(async () => {
-  if (!isScraping) {
-    isScraping = true;
-    console.log('\n🚀 Running initial Shopify store scraping job...');
-    try {
-      await runShopifyStoreScraping();
-    } catch (error) {
-      console.error('❌ Error in initial scraping job:', error.message);
-    } finally {
-      isScraping = false;
-    }
-  }
-}, 30000); // 30 seconds delay
-
-console.log('✅ Shopify Store Scraping Scheduler Enabled:');
-console.log('   - Initial scrape: 30 seconds after startup');
-console.log('   - Scheduled scraping: Every 20 minutes');
-console.log('   - Focus: .myshopify.com domains only');
-console.log('   - Sources: Reddit, Global Search, WHOISXML');
 
 // Graceful shutdown handling
 let isShuttingDown = false;

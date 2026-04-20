@@ -26,7 +26,7 @@ const Hero = () => {
           {/* Headline */}
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-normal mb-6 opacity-0 animate-fade-up animation-delay-200">
             <span className="text-foreground">Unlock Hidden </span>
-            <span className="gradient-text glow-text">Shopify Stores</span>
+            <span className="gradient-text">Shopify Stores</span>
             <span className="text-foreground"> Instantly</span>
           </h1>
 
@@ -40,7 +40,7 @@ const Hero = () => {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 opacity-0 animate-fade-up animation-delay-600">
             <Button 
               size="lg" 
-              className="bg-primary text-primary-foreground hover:bg-primary/90 font-normal px-8 py-6 text-lg glow-effect"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 font-normal px-8 py-6 text-lg"
               onClick={() => navigate("/dashboard")}
             >
               Start Free Trial

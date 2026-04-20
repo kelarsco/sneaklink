@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+
+// Logo paths from public directory
+const logoWhiteText = "/images/logo-white-text.png";
+const logoBlackText = "/images/logo-black-text.png";
 
 // Logo paths from public directory
 const logoWhiteText = "/images/logo-white-text.png";
@@ -10,6 +14,7 @@ const logoBlackText = "/images/logo-black-text.png";
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const navLinks = [
     { name: "Use Cases", href: "#use-cases" },
@@ -51,14 +56,26 @@ const Header = () => {
                 href={link.href} 
                 className="nav-link text-sm font-normal"
                 onClick={(e) => {
+                  e.preventDefault();
                   if (link.href === "#dashboard") {
-                    e.preventDefault();
                     navigate("/dashboard");
                   } else if (link.href.startsWith("#")) {
-                    e.preventDefault();
-                    const element = document.querySelector(link.href);
-                    if (element) {
-                      element.scrollIntoView({ behavior: 'smooth' });
+                    // If we're on a different page, navigate to homepage first
+                    if (location.pathname !== "/") {
+                      navigate("/");
+                      // Wait for navigation, then scroll to section
+                      setTimeout(() => {
+                        const element = document.querySelector(link.href);
+                        if (element) {
+                          element.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }, 100);
+                    } else {
+                      // Already on homepage, just scroll
+                      const element = document.querySelector(link.href);
+                      if (element) {
+                        element.scrollIntoView({ behavior: 'smooth' });
+                      }
                     }
                   }
                 }}
@@ -97,15 +114,27 @@ const Header = () => {
                   href={link.href}
                   className="text-muted-foreground hover:text-foreground transition-colors"
                   onClick={(e) => {
+                    e.preventDefault();
                     setIsMenuOpen(false);
                     if (link.href === "#dashboard") {
-                      e.preventDefault();
                       navigate("/dashboard");
                     } else if (link.href.startsWith("#")) {
-                      e.preventDefault();
-                      const element = document.querySelector(link.href);
-                      if (element) {
-                        element.scrollIntoView({ behavior: 'smooth' });
+                      // If we're on a different page, navigate to homepage first
+                      if (location.pathname !== "/") {
+                        navigate("/");
+                        // Wait for navigation, then scroll to section
+                        setTimeout(() => {
+                          const element = document.querySelector(link.href);
+                          if (element) {
+                            element.scrollIntoView({ behavior: 'smooth' });
+                          }
+                        }, 100);
+                      } else {
+                        // Already on homepage, just scroll
+                        const element = document.querySelector(link.href);
+                        if (element) {
+                          element.scrollIntoView({ behavior: 'smooth' });
+                        }
                       }
                     }
                   }}

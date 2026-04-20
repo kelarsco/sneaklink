@@ -646,19 +646,20 @@ const Account = () => {
 
 
                 {/* Plan Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
                   {plans.map((plan) => {
                     const PlanIcon = plan.icon;
                     const isCurrentPlan = plan.id === currentPlan;
                     const price = billingCycle === 'monthly' ? plan.monthlyPrice : plan.annualPrice;
+                    // All plans use USD
                     const displayPrice = `$${price}`;
                     const period = billingCycle === 'monthly' ? ' monthly' : ' yearly';
 
                     return (
                       <div
                         key={plan.id}
-                        className={`glass-card p-8 rounded-xl border transition-all relative hover:shadow-lg ${
-                          plan.popular ? 'border-primary glow-effect scale-105' : 'border-border/50'
+                        className={`glass-card p-8 rounded-xl border transition-all relative hover:shadow-lg flex flex-col h-full ${
+                          plan.popular ? 'border-primary glow-effect' : 'border-border/50'
                         } ${isCurrentPlan ? 'ring-2 ring-primary/50' : ''}`}
                       >
                         {plan.popular && !isCurrentPlan && (
@@ -681,7 +682,7 @@ const Account = () => {
 
                         <div className="mb-6">
                           <div className="flex items-center gap-3 mb-3">
-                            <div className={`p-2 rounded-lg ${plan.id === 'starter' ? 'bg-primary/10' : plan.id === 'pro' ? 'bg-primary/20' : 'bg-primary/30'}`}>
+                            <div className={`p-2 rounded-lg shrink-0 ${plan.id === 'starter' ? 'bg-primary/10' : plan.id === 'pro' ? 'bg-primary/20' : 'bg-primary/30'}`}>
                               <PlanIcon className={`w-6 h-6 ${plan.id === 'starter' ? 'text-primary' : 'text-primary'}`} />
                             </div>
                             <h3 className="text-2xl font-light text-foreground">{plan.name}</h3>
@@ -689,7 +690,7 @@ const Account = () => {
                           <p className="text-sm text-muted-foreground">{plan.description}</p>
                         </div>
 
-                        <div className="mb-8">
+                        <div className="mb-6">
                           <div className="flex items-baseline gap-2">
                             <span className="text-5xl font-light text-foreground">{displayPrice}</span>
                             <span className="text-lg text-muted-foreground">{period}</span>
@@ -702,10 +703,10 @@ const Account = () => {
                           )}
                         </div>
 
-                        <ul className="space-y-4 mb-8 min-h-[280px]">
+                        <ul className="space-y-3 mb-6 flex-1">
                           {plan.features.map((feature, idx) => (
                             <li key={idx} className="flex items-start gap-3">
-                              <div className="mt-0.5">
+                              <div className="mt-0.5 shrink-0">
                                 {feature.included ? (
                                   <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center">
                                     <Check className="w-3.5 h-3.5 text-primary shrink-0" />
@@ -724,7 +725,7 @@ const Account = () => {
                           ))}
                         </ul>
 
-                        <div className="space-y-2">
+                        <div className="mt-auto pt-4">
                           <Button
                             onClick={() => handleSubscribe(plan.id)}
                             disabled={isCurrentPlan || loading}

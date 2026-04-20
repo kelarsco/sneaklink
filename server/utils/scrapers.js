@@ -13,15 +13,6 @@ import { scrapeBuiltWith } from './builtWithScraper.js';
 import { scrapeRapidApi } from './rapidApiScraper.js';
 import { scrapeSerpApi } from './serpApiScraper.js';
 import { scrapeWayback } from './waybackScraper.js';
-// Import new comprehensive scrapers
-import { scrapeDiscord, scrapeDiscordInvites } from './discordScraper.js';
-import { scrapeTelegram, scrapeTelegramDirectories } from './telegramScraper.js';
-import { scrapeYouTube, scrapeYouTubeChannels } from './youtubeScraper.js';
-import { scrapeLinkedIn, scrapeLinkedInArticles } from './linkedinScraper.js';
-import { scrapeForums, scrapeEcommerceForums, scrapeStartupForums } from './forumScraper.js';
-import { scrapeAppStores, scrapeShopifyAppCaseStudies, scrapeReviewSites } from './appStoreScraper.js';
-import { generatePotentialDomains, discoverViaDNS, discoverViaSSLCertificates } from './domainGenerator.js';
-import { scrapeCompetitorAnalysis, scrapeEcommerceAwards, scrapeMarketplaceShowcases } from './competitorScraper.js';
 
 /**
  * Scrape Reddit for Shopify store links
@@ -325,139 +316,8 @@ export const scrapeFreeAPIs = async () => {
     });
     stores.push(...waybackStores);
     
-    // NEW: Comprehensive discovery methods
-    console.log('\n🚀 Starting comprehensive discovery methods...');
-    
-    // Discord Communities and Invites
-    const discordStores = await scrapeDiscord().catch(err => {
-      console.error('Error scraping Discord:', err.message);
-      return [];
-    });
-    stores.push(...discordStores);
-    
-    const discordInviteStores = await scrapeDiscordInvites().catch(err => {
-      console.error('Error scraping Discord invites:', err.message);
-      return [];
-    });
-    stores.push(...discordInviteStores);
-    
-    // Telegram Channels and Directories
-    const telegramStores = await scrapeTelegram().catch(err => {
-      console.error('Error scraping Telegram:', err.message);
-      return [];
-    });
-    stores.push(...telegramStores);
-    
-    const telegramDirStores = await scrapeTelegramDirectories().catch(err => {
-      console.error('Error scraping Telegram directories:', err.message);
-      return [];
-    });
-    stores.push(...telegramDirStores);
-    
-    // YouTube Videos and Channels
-    const youtubeStores = await scrapeYouTube().catch(err => {
-      console.error('Error scraping YouTube:', err.message);
-      return [];
-    });
-    stores.push(...youtubeStores);
-    
-    const youtubeChannelStores = await scrapeYouTubeChannels().catch(err => {
-      console.error('Error scraping YouTube channels:', err.message);
-      return [];
-    });
-    stores.push(...youtubeChannelStores);
-    
-    // LinkedIn Profiles and Articles
-    const linkedinStores = await scrapeLinkedIn().catch(err => {
-      console.error('Error scraping LinkedIn:', err.message);
-      return [];
-    });
-    stores.push(...linkedinStores);
-    
-    const linkedinArticleStores = await scrapeLinkedInArticles().catch(err => {
-      console.error('Error scraping LinkedIn articles:', err.message);
-      return [];
-    });
-    stores.push(...linkedinArticleStores);
-    
-    // Forums and Communities
-    const forumStores = await scrapeForums().catch(err => {
-      console.error('Error scraping forums:', err.message);
-      return [];
-    });
-    stores.push(...forumStores);
-    
-    const ecommerceForumStores = await scrapeEcommerceForums().catch(err => {
-      console.error('Error scraping e-commerce forums:', err.message);
-      return [];
-    });
-    stores.push(...ecommerceForumStores);
-    
-    const startupForumStores = await scrapeStartupForums().catch(err => {
-      console.error('Error scraping startup forums:', err.message);
-      return [];
-    });
-    stores.push(...startupForumStores);
-    
-    // App Stores and Case Studies
-    const appStoreStores = await scrapeAppStores().catch(err => {
-      console.error('Error scraping app stores:', err.message);
-      return [];
-    });
-    stores.push(...appStoreStores);
-    
-    const caseStudyStores = await scrapeShopifyAppCaseStudies().catch(err => {
-      console.error('Error scraping app case studies:', err.message);
-      return [];
-    });
-    stores.push(...caseStudyStores);
-    
-    const reviewSiteStores = await scrapeReviewSites().catch(err => {
-      console.error('Error scraping review sites:', err.message);
-      return [];
-    });
-    stores.push(...reviewSiteStores);
-    
-    // Domain Generation and Discovery
-    const domainGenStores = await generatePotentialDomains().catch(err => {
-      console.error('Error generating domains:', err.message);
-      return [];
-    });
-    stores.push(...domainGenStores);
-    
-    const dnsStores = await discoverViaDNS().catch(err => {
-      console.error('Error discovering via DNS:', err.message);
-      return [];
-    });
-    stores.push(...dnsStores);
-    
-    const sslStores = await discoverViaSSLCertificates().catch(err => {
-      console.error('Error discovering via SSL certificates:', err.message);
-      return [];
-    });
-    stores.push(...sslStores);
-    
-    // Competitor Analysis and Awards
-    const competitorStores = await scrapeCompetitorAnalysis().catch(err => {
-      console.error('Error scraping competitor analysis:', err.message);
-      return [];
-    });
-    stores.push(...competitorStores);
-    
-    const awardStores = await scrapeEcommerceAwards().catch(err => {
-      console.error('Error scraping e-commerce awards:', err.message);
-      return [];
-    });
-    stores.push(...awardStores);
-    
-    const marketplaceStores = await scrapeMarketplaceShowcases().catch(err => {
-      console.error('Error scraping marketplace showcases:', err.message);
-      return [];
-    });
-    stores.push(...marketplaceStores);
-    
   } catch (error) {
-    console.error('Error in comprehensive discovery:', error.message);
+    console.error('Error scraping free APIs:', error.message);
   }
 
   return stores;

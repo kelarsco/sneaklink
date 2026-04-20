@@ -1,7 +1,24 @@
+import { useEffect } from "react";
 import Header from "@/components/homepage/Header";
 import Footer from "@/components/homepage/Footer";
 
 const TermsOfService = () => {
+  // Always scroll to top when Terms of Service page loads
+  useEffect(() => {
+    // Immediately scroll to top
+    window.scrollTo(0, 0);
+    // Also use requestAnimationFrame to ensure it happens after React Router's scroll restoration
+    const scrollToTop = () => {
+      window.scrollTo(0, 0);
+    };
+    requestAnimationFrame(scrollToTop);
+    // Small delay to override any scroll restoration
+    const timeoutId = setTimeout(() => {
+      window.scrollTo(0, 0);
+    }, 100);
+    return () => clearTimeout(timeoutId);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <Header />

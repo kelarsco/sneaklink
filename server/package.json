@@ -31,8 +31,6 @@
     "prisma:validate": "prisma validate",
     "postgres:test": "node scripts/test-postgres-connection.js",
     "db:check": "node scripts/check-database-url.js",
-    "db:sync-neon": "node scripts/sync-database-to-neon.js",
-    "db:check-sync-urls": "node scripts/check-sync-urls.js",
     "migrate:data": "node scripts/migrate-mongodb-to-postgres.js",
     "db:create": "powershell -ExecutionPolicy Bypass -File scripts/create-database.ps1",
     "db:create:cmd": "scripts\\create-database.bat",
@@ -57,7 +55,6 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.2",
-    "pg": "^8.13.0",
     "prisma": "6.19.1"
   }
 }

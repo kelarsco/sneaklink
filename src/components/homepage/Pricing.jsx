@@ -75,11 +75,11 @@ const Pricing = () => {
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto items-stretch">
           {plans.map((plan) => (
             <div
               key={plan.name}
-              className={`glass-panel p-8 relative ${
+              className={`glass-panel p-8 relative flex flex-col h-full ${
                 plan.popular ? "border-primary glow-effect" : ""
               }`}
             >
@@ -97,7 +97,7 @@ const Pricing = () => {
                 <p className="text-sm text-muted-foreground">{plan.description}</p>
               </div>
 
-              <div className="mb-4">
+              <div className="mb-6">
                 <div className="flex items-baseline gap-2">
                   <span className="text-4xl font-normal text-foreground">{plan.price}</span>
                   <span className="text-muted-foreground">{plan.period}</span>
@@ -105,14 +105,14 @@ const Pricing = () => {
               </div>
 
               {plan.currentPlan && (
-                <div className="mb-4">
+                <div className="mb-6">
                   <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-normal bg-primary/10 text-primary border border-primary/20">
                     Current Plan
                   </span>
                 </div>
               )}
 
-              <ul className="space-y-3 mb-8">
+              <ul className="space-y-3 mb-6 flex-1">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-center gap-3">
                     <Check className="w-5 h-5 text-primary shrink-0" />
@@ -121,16 +121,18 @@ const Pricing = () => {
                 ))}
               </ul>
 
-              <Button
-                className={`w-full font-normal ${
-                  plan.popular
-                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                }`}
-                onClick={() => navigate("/dashboard")}
-              >
-                {plan.buttonText || "Get Started"}
-              </Button>
+              <div className="mt-auto pt-4">
+                <Button
+                  className={`w-full font-normal ${
+                    plan.popular
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                      : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                  }`}
+                  onClick={() => navigate("/dashboard")}
+                >
+                  {plan.buttonText || "Get Started"}
+                </Button>
+              </div>
             </div>
           ))}
         </div>

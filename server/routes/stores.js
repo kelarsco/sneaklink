@@ -1,6 +1,5 @@
 import express from 'express';
 import { saveDiscoveredStore } from '../services/discoveryService.js';
-import { scrapeStore } from '../services/storeScraperService.js';
 // Scraping routes removed - use new scraping service instead
 import { authenticate, requireAdmin, optionalAuth } from '../middleware/auth.js';
 import { writeLimiter, scrapingLimiter, storeAdditionLimiter } from '../middleware/rateLimiter.js';
@@ -295,42 +294,19 @@ router.get('/scrape/status', optionalAuth, async (req, res) => {
   }
 });
 
-// Comprehensive store scraping endpoint - 7-stage detection
+// Scraping endpoint - Accepts custom scraping configuration
 router.post('/scrape', authenticate, checkPlanAction('canScrape'), scrapingLimiter, async (req, res) => {
   try {
-    const { url, source = 'manual' } = req.body;
+    const { sources, config } = req.body;
     
-    if (!url) {
-      return res.status(400).json({ error: 'URL is required' });
-    }
-    
-    // Validate URL format
-    try {
-      new URL(url.startsWith('http') ? url : `https://${url}`);
-    } catch (error) {
-      return res.status(400).json({ error: 'Invalid URL format' });
-    }
-
-    // Run comprehensive scraping (all 7 stages)
-    const result = await scrapeStore(url, { source });
-    
-    if (!result.success) {
-      return res.status(400).json({
-        error: result.error || 'Scraping failed',
-        stage: result.stage,
-        details: result.details,
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Store scraped and saved successfully',
-      store: result.store,
-      details: result.details,
+    res.json({ 
+      message: 'Scraping system is ready for new configuration',
+      note: 'Please provide scraping sources and configuration. The old system has been removed for clarity.',
+      status: 'ready_for_configuration'
     });
   } catch (error) {
     console.error('Error in scrape endpoint:', error);
-    res.status(500).json({ error: 'Failed to process scraping request', message: error.message });
+    res.status(500).json({ error: 'Failed to process scraping request' });
   }
 });
 
